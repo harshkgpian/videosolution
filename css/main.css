@@ -1,0 +1,38 @@
+:root {
+  --primary-color: #2563eb;
+  --bg-color: #f8fafc;
+  --toolbar-bg: #ffffff;
+  --border-color: #e2e8f0;
+  --text-color: #334155;
+  --text-light: #64748b;
+  --button-hover-bg: #f1f5f9;
+  --sidebar-width: 150px;
+}
+
+body {
+  display: flex;
+  margin: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+.main-content {
+  margin-left: var(--sidebar-width);
+  width: calc(100% - var(--sidebar-width));
+  height: 100vh;
+  /* MODIFIED: Center the canvas container */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  box-sizing: border-box;
+  /* REMOVED: overflow-y: auto to prevent scrollbars */
+}
+
+/* DELETED: The .page-controls styles are no longer needed */

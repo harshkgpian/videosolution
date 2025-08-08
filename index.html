@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Professional Drawing & Recording Canvas</title>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/toolbar.css">
+  <link rel="stylesheet" href="css/canvas.css">
+  <link rel="stylesheet" href="css/modal.css">
+
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+
+  <!-- Sidebar (No changes here) -->
+  <aside class="sidebar">
+    <div class="tool-group">
+      <h4>Tools</h4>
+      <button id="selectTool" title="Select Tool (V)"><i class="fa-solid fa-hand-pointer"></i><span>Select</span></button>
+      <button id="pencil" class="active" title="Pencil (P)"><i class="fa-solid fa-pencil"></i><span>Pencil</span></button>
+      <button id="eraser" title="Eraser (E)"><i class="fa-solid fa-eraser"></i><span>Eraser</span></button>
+    </div>
+    <div class="tool-group">
+        <h4>Actions</h4>
+        <div class="control-row">
+            <button id="recordBtn" title="Record"><i class="fa-solid fa-microphone"></i><span>Record</span></button>
+            <button id="stopBtn" title="Stop Recording" style="display: none;"><i class="fa-solid fa-stop"></i></button>
+        </div>
+        <canvas id="waveformCanvas" width="180" height="30"></canvas>
+    </div>
+    <div class="tool-group">
+      <h4>Brush</h4>
+      <div class="control-row"><div class="control-item"><label for="size">Size</label><select id="size" title="Brush Size"><option value="1.5">XF</option><option value="2.5" selected>F</option><option value="5">M</option><option value="7">T</option><option value="12">XT</option></select></div><div class="control-item"><label for="color">Color</label><select id="color" title="Color"><option value="#000000">⚫</option><option value="#1e40af">🔵</option><option value="#dc2626">🔴</option><option value="#047857">🟢</option></select></div></div>
+    </div>
+    <div class="tool-group">
+      <h4>Objects</h4>
+       <button id="addImageBtn" title="Add Image"><i class="fa-solid fa-image"></i><span>Add Image</span></button><input type="file" id="imageInput" accept="image/*" style="display:none;">
+      <button id="addBackgroundBtn" title="Add Background"><i class="fa-solid fa-file-image"></i><span>Set BG</span></button><input type="file" id="backgroundInput" accept="image/*" style="display:none;">
+      <button id="removeBackgroundBtn" title="Remove Background"><i class="fa-solid fa-ban"></i><span>Clear BG</span></button>
+    </div>
+    <div class="tool-group">
+      <h4>Navigation</h4>
+      <div class="control-row page-nav-buttons"><button id="prevPage" title="Previous Page"><i class="fa-solid fa-chevron-left"></i></button><button id="nextPage" title="Next Page"><i class="fa-solid fa-chevron-right"></i></button></div>
+      <span id="pageInfo">Page 1 of 1</span>
+    </div>
+    <div class="tool-group">
+      <h4>File</h4>
+      <button id="savePdf" title="Save as PDF (Ctrl+S)"><i class="fa-solid fa-file-pdf"></i><span>Save PDF</span></button>
+      <button id="customCanvasBtn" title="Canvas Size"><i class="fa-solid fa-ruler-combined"></i><span>Canvas Size</span></button>
+    </div>
+  </aside>
+
+  <!-- Main Content Area (No changes here) -->
+  <main class="main-content">
+    <div class="canvas-container"><canvas id="drawingCanvas"></canvas></div>
+  </main>
+
+  <!-- Modals -->
+  <div id="canvasSizeModal" class="modal">
+    <div class="modal-content">
+      <h3>Custom Canvas Size</h3>
+      <div><label for="canvasWidth">Width (px):</label><input type="number" id="canvasWidth" min="100" max="4000" value="1280"></div>
+      <div><label for="canvasHeight">Height (px):</label><input type="number" id="canvasHeight" min="100" max="4000" value="720"></div>
+      <button id="setBrowserSize" style="width: 100%; margin: 10px 0;">Set to Browser Size</button>
+      <p>Note: Changing canvas size will clear the current drawing.</p>
+      <div class="modal-buttons"><button id="cancelCanvasSize" class="btn-secondary">Cancel</button><button id="confirmCanvasSize">Apply</button></div>
+    </div>
+  </div>
+
+  <div id="filenameModal" class="modal">
+    <div class="modal-content">
+      <h3>Save Drawing as PDF</h3>
+      <div><label for="filenameInput">Filename:</label><input type="text" id="filenameInput" placeholder="drawing.pdf"></div>
+      <div class="modal-buttons"><button id="cancelSave" class="btn-secondary">Cancel</button><button id="confirmSave">Save</button></div>
+    </div>
+  </div>
+
+  <!-- NEW: Modal for saving the recording -->
+  <div id="recordingNameModal" class="modal">
+    <div class="modal-content">
+      <h3>Save Recording</h3>
+      <div>
+        <label for="recordingNameInput">Filename:</label>
+        <input type="text" id="recordingNameInput" placeholder="recording.webm">
+      </div>
+      <div class="modal-buttons">
+        <button id="cancelRecordingSave" class="btn-secondary">Discard</button>
+        <button id="confirmRecordingSave">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- External Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  
+  <!-- Main Application Script -->
+  <script src="js/main.js" type="module"></script>
+</body>
+</html>
