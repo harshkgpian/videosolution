@@ -117,13 +117,28 @@ button:disabled {
 
 button.recording {
   background-color: #dc2626;
-  color: white;
+  color: rgb(255, 255, 255);
   border-color: #b91c1c;
   animation: pulse 1.5s infinite;
 }
 button.recording span {
     animation: text-pulse 1.5s infinite;
 }
+
+/* NEW: Style for the paused state button */
+button.paused {
+  background-color: #ffffff; /* White background */
+  color: #334155; /* Dark text */
+  border-color: #334155; /* Dark border to match default record button */
+  animation: none; /* Make sure to stop the pulse animation */
+}
+button.paused i {
+  color: #334155; /* Dark icon */
+}
+button.paused span {
+    animation: none; /* Stop text pulse animation */
+}
+
 
 @keyframes pulse {
   0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7); }
@@ -147,14 +162,13 @@ button.recording span {
     flex-direction: column;
 }
 
-/* --- MODIFIED: Styles for the new navigation layout --- */
 .page-nav-buttons {
     display: flex;
-    gap: 8px; /* Gap between prev/next buttons */
+    gap: 8px;
 }
 .page-nav-buttons button {
-    flex: 1; /* Make them share space equally */
-    justify-content: center; /* Center the icon */
+    flex: 1;
+    justify-content: center;
     padding: 8px;
 }
 .page-nav-buttons button i {
@@ -163,12 +177,12 @@ button.recording span {
 }
 
 #pageInfo {
-    display: block; /* Make it a block element to center */
+    display: block;
     text-align: center;
     font-size: 10px;
     color: var(--text-light);
     font-weight: 500;
-    margin-top: 8px; /* Space between buttons and text */
+    margin-top: 8px;
 }
 
 

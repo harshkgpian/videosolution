@@ -14,14 +14,17 @@ const updatePageInfo = () => {
 
 const setupToolButtons = () => {
     const tools = [
-        { btn: elements.selectToolBtn, name: 'select', cursor: 'default' },
-        { btn: elements.pencilBtn, name: 'pencil', cursor: 'crosshair' },
-        { btn: elements.eraserBtn, name: 'eraser', cursor: 'grab' },
+        { btn: elements.selectToolBtn, name: 'select', cursorClass: 'cursor-default' },
+        { btn: elements.pencilBtn, name: 'pencil', cursorClass: 'cursor-dot' },
+        { btn: elements.eraserBtn, name: 'eraser', cursorClass: 'cursor-grab' },
     ];
+    const cursorClasses = tools.map(t => t.cursorClass);
+
     tools.forEach(tool => {
         tool.btn.addEventListener('click', () => {
             canvas.setTool(tool.name);
-            elements.canvas.style.cursor = tool.cursor;
+            elements.canvas.classList.remove(...cursorClasses);
+            elements.canvas.classList.add(tool.cursorClass);
             tools.forEach(t => t.btn.classList.remove('active'));
             tool.btn.classList.add('active');
         });
@@ -56,25 +59,33 @@ const setupActionButtons = () => {
     elements.savePdfBtn.addEventListener('click', () => file.saveDrawing(false));
 };
 
+// MODIFIED: This function now handles the three visual states for recording
 const updateRecordingUI = () => {
     const { recordBtn, stopBtn } = elements;
     const recordText = recordBtn.querySelector('span');
     const recordIcon = recordBtn.querySelector('i');
 
     if (!recorder.isRecording()) {
-        recordBtn.classList.remove('recording');
+        // State: STOPPED
+        recordBtn.classList.remove('recording', 'paused'); // Remove all recording classes
         recordIcon.className = 'fa-solid fa-microphone';
         recordText.textContent = 'Record';
         recordBtn.title = 'Start Recording';
         stopBtn.style.display = 'none';
     } else {
+        // State: RECORDING or PAUSED
         stopBtn.style.display = 'flex';
-        recordBtn.classList.add('recording');
-        if (recorder.getIsPaused()) {
+            if (recorder.getIsPaused()) {
+            // State: PAUSED
+            recordBtn.classList.remove('recording'); // Remove red pulse
+            recordBtn.classList.add('paused');      // Add white style
             recordIcon.className = 'fa-solid fa-play';
             recordText.textContent = 'R';
             recordBtn.title = 'Resume Recording';
         } else {
+            // State: ACTIVELY RECORDING
+            recordBtn.classList.remove('paused');   // Remove white style
+            recordBtn.classList.add('recording');   // Add red pulse
             recordIcon.className = 'fa-solid fa-pause';
             recordText.textContent = 'P';
             recordBtn.title = 'Pause Recording';
@@ -82,23 +93,17 @@ const updateRecordingUI = () => {
     }
 };
 
-// NEW: Function to handle the save modal logic
 const handleRecordingSave = (blob) => {
     const { recordingNameModal, recordingNameInput, confirmRecordingSaveBtn, cancelRecordingSaveBtn } = elements;
-    
-    // Create a default filename
     const timestamp = new Date().toISOString().slice(0, 19).replace(/[-:T]/g, '');
     recordingNameInput.value = `recording-${timestamp}.webm`;
-    
     recordingNameModal.style.display = 'flex';
     recordingNameInput.focus();
     recordingNameInput.select();
-
     const cleanup = () => {
         recordingNameModal.style.display = 'none';
-        updateRecordingUI(); // Reset UI after modal is closed
+        updateRecordingUI();
     };
-
     const onConfirm = () => {
         const filename = recordingNameInput.value || recordingNameInput.placeholder;
         const url = URL.createObjectURL(blob);
@@ -112,12 +117,7 @@ const handleRecordingSave = (blob) => {
         document.body.removeChild(a);
         cleanup();
     };
-
-    const onCancel = () => {
-        console.log('Recording discarded.');
-        cleanup();
-    };
-
+    const onCancel = () => cleanup();
     confirmRecordingSaveBtn.onclick = onConfirm;
     cancelRecordingSaveBtn.onclick = onCancel;
 };
@@ -132,14 +132,11 @@ const setupRecording = () => {
         }
         updateRecordingUI();
     });
-
     elements.stopBtn.addEventListener('click', async () => {
-        // MODIFIED: Await the promise from stopRecording
         const blob = await recorder.stopRecording();
         if (blob && blob.size > 0) {
             handleRecordingSave(blob);
         } else {
-            // If stopping resulted in no data, just update the UI
             updateRecordingUI();
         }
     });
