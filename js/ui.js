@@ -16,7 +16,7 @@ const setupToolButtons = () => {
     const tools = [
         { btn: elements.selectToolBtn, name: 'select', cursorClass: 'cursor-default' },
         { btn: elements.pencilBtn, name: 'pencil', cursorClass: 'cursor-dot' },
-        { btn: elements.highlighterBtn, name: 'highlighter', cursorClass: 'cursor-highlighter' }, // NEW
+        { btn: elements.highlighterBtn, name: 'highlighter', cursorClass: 'cursor-highlighter' },
         { btn: elements.eraserBtn, name: 'eraser', cursorClass: 'cursor-eraser' },
     ];
     const cursorClasses = tools.map(t => t.cursorClass);
@@ -182,9 +182,27 @@ const setupBackgroundControls = () => {
     });
 };
 
+// --- MODIFIED: This function now manages the recorder's pinger to prevent visual bugs ---
 const setupPageControls = () => {
-    elements.prevPageBtn.addEventListener('click', () => { canvas.changePage('prev'); updatePageInfo(); });
-    elements.nextPageBtn.addEventListener('click', () => { canvas.changePage('next'); updatePageInfo(); });
+    const handlePageChange = (direction) => {
+        // If recording, stop the pinger to prevent it from drawing the old page content.
+        if (recorder.isRecording()) {
+            recorder.stopPinger();
+        }
+
+        // Change the page and update the UI.
+        canvas.changePage(direction);
+        updatePageInfo();
+
+        // If recording (and not paused), restart the pinger. It will now have a fresh
+        // snapshot of the new, correct page content.
+        if (recorder.isRecording() && !recorder.getIsPaused()) {
+            recorder.startPinger();
+        }
+    };
+
+    elements.prevPageBtn.addEventListener('click', () => handlePageChange('prev'));
+    elements.nextPageBtn.addEventListener('click', () => handlePageChange('next'));
 };
 
 const setupCanvasSizeModal = () => {
@@ -240,7 +258,7 @@ const setupKeyboardShortcuts = () => {
         if (!isCtrl) {
             switch (e.key.toLowerCase()) {
                 case 'p': e.preventDefault(); elements.pencilBtn.click(); break;
-                case 'h': e.preventDefault(); elements.highlighterBtn.click(); break; // NEW
+                case 'h': e.preventDefault(); elements.highlighterBtn.click(); break;
                 case 'e': e.preventDefault(); elements.eraserBtn.click(); break;
                 case 'v': e.preventDefault(); elements.selectToolBtn.click(); break;
                 case 'delete': case 'backspace': e.preventDefault(); canvas.deleteSelectedObject(); break;
