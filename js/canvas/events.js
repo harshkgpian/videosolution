@@ -80,7 +80,9 @@ export const onPointerMove = (e) => {
             else if (['tm', 'bm'].includes(handle)) elements.canvas.style.cursor = 'ns-resize';
             else elements.canvas.style.cursor = 'ew-resize';
         } else {
-            elements.canvas.style.cursor = getObjectAtPosition(currentPoint) ? 'move' : 'default';
+            // MODIFICATION: When not on a handle, use 'move' for an object, or revert to the class-defined cursor.
+            // Setting style.cursor to '' allows the CSS class to take effect again, fixing the bug.
+            elements.canvas.style.cursor = getObjectAtPosition(currentPoint) ? 'move' : '';
         }
     }
 

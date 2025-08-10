@@ -19,8 +19,9 @@ export const getCanvasContext = () => ({ canvas: elements.canvas, ctx: elements.
 
 export const setTool = (toolName) => { 
     state.tool = toolName;
-    state.selectedObject = null;
+    // MODIFICATION: Deselect object when switching to a non-select tool for clarity.
     if (toolName !== 'select') {
+        state.selectedObject = null;
         renderPage();
     }
 };
@@ -56,9 +57,13 @@ export const addImage = (imageDataUrl) => {
 
         if (!state.pages[pageIndex]) state.pages[pageIndex] = [];
         state.pages[pageIndex].push(newImage);
+        
+        // MODIFICATION: Revert to the intuitive behavior. After adding an image,
+        // we select it and activate the select tool so the user can manipulate it.
         state.selectedObject = newImage;
         setTool('select');
-        elements.selectToolBtn.click();
+        elements.selectToolBtn.click(); // This is crucial to update the UI correctly.
+        
         renderPage();
     };
 };

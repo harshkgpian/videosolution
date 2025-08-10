@@ -16,13 +16,17 @@ const setupToolButtons = () => {
     const tools = [
         { btn: elements.selectToolBtn, name: 'select', cursorClass: 'cursor-default' },
         { btn: elements.pencilBtn, name: 'pencil', cursorClass: 'cursor-dot' },
-        { btn: elements.eraserBtn, name: 'eraser', cursorClass: 'cursor-grab' },
+        { btn: elements.eraserBtn, name: 'eraser', cursorClass: 'cursor-eraser' },
     ];
     const cursorClasses = tools.map(t => t.cursorClass);
 
     tools.forEach(tool => {
         tool.btn.addEventListener('click', () => {
             canvas.setTool(tool.name);
+
+            // MODIFICATION: Explicitly clear any inline cursor style left over by the select tool.
+            elements.canvas.style.cursor = '';
+            
             elements.canvas.classList.remove(...cursorClasses);
             elements.canvas.classList.add(tool.cursorClass);
             tools.forEach(t => t.btn.classList.remove('active'));
