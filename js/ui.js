@@ -16,6 +16,7 @@ const setupToolButtons = () => {
     const tools = [
         { btn: elements.selectToolBtn, name: 'select', cursorClass: 'cursor-default' },
         { btn: elements.pencilBtn, name: 'pencil', cursorClass: 'cursor-dot' },
+        { btn: elements.highlighterBtn, name: 'highlighter', cursorClass: 'cursor-highlighter' }, // NEW
         { btn: elements.eraserBtn, name: 'eraser', cursorClass: 'cursor-eraser' },
     ];
     const cursorClasses = tools.map(t => t.cursorClass);
@@ -208,60 +209,38 @@ const setupCanvasSizeModal = () => {
     });
 };
 
-// --- MODIFIED: This function now includes the paste event listener ---
 const setupKeyboardShortcuts = () => {
-    // --- NEW: Add event listener for pasting images ---
     document.addEventListener('paste', async (e) => {
-        // Prevent the browser's default paste action.
         e.preventDefault();
-
-        // Check if the focused element is an input; if so, do nothing.
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') {
             return;
         }
-
         try {
-            // Read the contents of the clipboard.
             const clipboardItems = await navigator.clipboard.read();
-
-            // Loop through the clipboard items to find an image.
             for (const item of clipboardItems) {
-                // Find the first item type that is an image.
                 const imageType = item.types.find(type => type.startsWith('image/'));
-                
                 if (imageType) {
-                    // Get the image data as a blob.
                     const blob = await item.getType(imageType);
-                    
-                    // Use a FileReader to convert the blob to a base64 Data URL.
                     const reader = new FileReader();
                     reader.onload = (event) => {
-                        // Add the image to the canvas using the existing function.
                         canvas.addImage(event.target.result);
                     };
                     reader.readAsDataURL(blob);
-
-                    // Break the loop once the first image is found and processed.
                     break; 
                 }
             }
         } catch (err) {
             console.error('Failed to read clipboard contents: ', err);
-            // You could optionally alert the user that pasting failed.
-            // alert('Could not paste image. Please ensure you have granted clipboard permissions.');
         }
     });
 
     document.addEventListener('keydown', (e) => {
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
-
         const isCtrl = e.ctrlKey || e.metaKey;
-
-        // The paste logic is handled by the 'paste' event, so we don't need a Ctrl+V check here.
-
         if (!isCtrl) {
             switch (e.key.toLowerCase()) {
                 case 'p': e.preventDefault(); elements.pencilBtn.click(); break;
+                case 'h': e.preventDefault(); elements.highlighterBtn.click(); break; // NEW
                 case 'e': e.preventDefault(); elements.eraserBtn.click(); break;
                 case 'v': e.preventDefault(); elements.selectToolBtn.click(); break;
                 case 'delete': case 'backspace': e.preventDefault(); canvas.deleteSelectedObject(); break;

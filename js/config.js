@@ -7,6 +7,7 @@ export const elements = {
   // Toolbar
   selectToolBtn: document.getElementById('selectTool'),
   pencilBtn: document.getElementById('pencil'),
+  highlighterBtn: document.getElementById('highlighter'), // NEW
   eraserBtn: document.getElementById('eraser'),
   sizeSelect: document.getElementById('size'),
   colorSelect: document.getElementById('color'),
@@ -46,7 +47,7 @@ export const elements = {
   cancelSaveBtn: document.getElementById('cancelSave'),
   confirmSaveBtn: document.getElementById('confirmSave'),
 
-  // NEW: Recording Save Modal
+  // Recording Save Modal
   recordingNameModal: document.getElementById('recordingNameModal'),
   recordingNameInput: document.getElementById('recordingNameInput'),
   confirmRecordingSaveBtn: document.getElementById('confirmRecordingSave'),

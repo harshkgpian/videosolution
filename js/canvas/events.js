@@ -4,11 +4,8 @@ import { state } from './state.js';
 import { renderPage } from './renderer.js';
 import { getObjectAtPosition, getHandleAtPosition, isPointOnStroke } from './interactions.js';
 
-// REMOVED: No more need for undo callback
-
 const getTransformedCoordinates = (e) => {
     const rect = elements.canvas.getBoundingClientRect();
-    // NEW: Calculate coordinates based on the scaled canvas
     const scaleX = elements.canvas.width / rect.width;
     const scaleY = elements.canvas.height / rect.height;
 
@@ -42,7 +39,7 @@ const eraseAtPoint = (point) => {
 
 export const onPointerDown = (e) => {
     state.isDrawing = true;
-    state.lastPoint = getTransformedCoordinates(e); // Use transformed coords
+    state.lastPoint = getTransformedCoordinates(e);
 
     if (state.tool === 'select') {
         const handle = state.selectedObject ? getHandleAtPosition(state.lastPoint, state.selectedObject) : null;
@@ -59,18 +56,23 @@ export const onPointerDown = (e) => {
                 state.actionState = null;
             }
         }
-    } else if (state.tool === 'pencil') {
+    } else if (state.tool === 'pencil' || state.tool === 'highlighter') { // MODIFIED to include highlighter
         state.currentStroke = {
-            type: 'stroke', id: Date.now() + Math.random(),
-            points: [state.lastPoint], color: elements.colorSelect.value,
-            width: parseInt(elements.sizeSelect.value, 10), isErased: false,
+            type: 'stroke',
+            id: Date.now() + Math.random(),
+            points: [state.lastPoint],
+            color: elements.colorSelect.value,
+            width: parseFloat(elements.sizeSelect.value),
+            tool: state.tool, // Store which tool created the stroke
+            isErased: false,
         };
     }
     renderPage();
 };
 
 export const onPointerMove = (e) => {
-    const currentPoint = state.tool === 'pencil' ? getSmoothedCoordinates(e) : getTransformedCoordinates(e);
+    const isDrawingTool = state.tool === 'pencil' || state.tool === 'highlighter';
+    const currentPoint = isDrawingTool ? getSmoothedCoordinates(e) : getTransformedCoordinates(e);
     
     if (state.tool === 'select' && !state.isDrawing) {
         const handle = state.selectedObject ? getHandleAtPosition(currentPoint, state.selectedObject) : null;
@@ -80,8 +82,6 @@ export const onPointerMove = (e) => {
             else if (['tm', 'bm'].includes(handle)) elements.canvas.style.cursor = 'ns-resize';
             else elements.canvas.style.cursor = 'ew-resize';
         } else {
-            // MODIFICATION: When not on a handle, use 'move' for an object, or revert to the class-defined cursor.
-            // Setting style.cursor to '' allows the CSS class to take effect again, fixing the bug.
             elements.canvas.style.cursor = getObjectAtPosition(currentPoint) ? 'move' : '';
         }
     }
@@ -103,7 +103,7 @@ export const onPointerMove = (e) => {
             if (obj.width < 10) obj.width = 10;
             if (obj.height < 10) obj.height = 10;
         }
-    } else if (state.tool === 'pencil' && state.currentStroke) {
+    } else if (isDrawingTool && state.currentStroke) {
         state.currentStroke.points.push(currentPoint);
     } else if (state.tool === 'eraser') {
         eraseAtPoint(currentPoint);
@@ -113,7 +113,9 @@ export const onPointerMove = (e) => {
 
 export const onPointerUp = () => {
     if (!state.isDrawing) return;
-    if (state.tool === 'pencil' && state.currentStroke && state.currentStroke.points.length > 1) {
+    // MODIFIED: Handle both pencil and highlighter for saving the stroke
+    const isDrawingTool = state.tool === 'pencil' || state.tool === 'highlighter';
+    if (isDrawingTool && state.currentStroke && state.currentStroke.points.length > 1) {
         const pageIndex = state.currentPage - 1;
         state.pages[pageIndex].push(state.currentStroke);
     }

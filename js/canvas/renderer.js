@@ -8,11 +8,26 @@ const ctx = canvas.getContext("2d", { willReadFrequently: true });
 
 const drawStroke = (stroke) => {
   if (!stroke || stroke.points.length < 2) return;
-  ctx.globalCompositeOperation = 'source-over';
-  ctx.strokeStyle = stroke.color;
-  ctx.lineWidth = stroke.width;
-  ctx.lineCap = 'round';
+
+  const isHighlighter = stroke.tool === 'highlighter';
+
+  // --- Set rendering properties based on the tool ---
+  ctx.globalCompositeOperation = isHighlighter ? 'multiply' : 'source-over';
+  ctx.lineWidth = isHighlighter ? stroke.width * 3 : stroke.width;
+  ctx.lineCap = isHighlighter ? 'butt' : 'round'; // Flat tip for highlighter
   ctx.lineJoin = 'round';
+
+  let strokeColor = stroke.color;
+  if (isHighlighter) {
+    // Convert hex color to rgba for transparency
+    const r = parseInt(stroke.color.slice(1, 3), 16);
+    const g = parseInt(stroke.color.slice(3, 5), 16);
+    const b = parseInt(stroke.color.slice(5, 7), 16);
+    strokeColor = `rgba(${r}, ${g}, ${b}, 0.4)`; // 40% opacity for a nice effect
+  }
+  ctx.strokeStyle = strokeColor;
+  
+  // --- Drawing logic ---
   ctx.beginPath();
   ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
   for (let i = 1; i < stroke.points.length - 1; i++) {
@@ -35,7 +50,7 @@ const drawImage = (imageObj) => {
 const drawSelectionBox = (obj) => {
     if (obj.type !== 'image') return;
     ctx.strokeStyle = 'rgba(37, 99, 235, 0.9)';
-    ctx.lineWidth = 1.5 / (window.devicePixelRatio || 1); // Keep selection box thin
+    ctx.lineWidth = 1.5 / (window.devicePixelRatio || 1);
     ctx.setLineDash([6, 3]);
     ctx.strokeRect(obj.x, obj.y, obj.width, obj.height);
     ctx.setLineDash([]);
@@ -56,13 +71,15 @@ const clearCanvas = () => {
 };
 
 export const renderPage = () => {
-  clearCanvas();
   const state = getState();
+  // Store current state to restore it later
+  const originalCompositeOp = ctx.globalCompositeOperation;
+  
+  clearCanvas();
   ctx.fillStyle = "white";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   if (state.backgroundImage) {
-    // MODIFIED: Draw the background to fill the entire canvas resolution
     ctx.drawImage(state.backgroundImage, 0, 0, canvas.width, canvas.height);
   }
   
@@ -84,15 +101,19 @@ export const renderPage = () => {
   if (state.isDrawing && state.currentStroke) {
       drawStroke(state.currentStroke);
   }
+
+  // Restore the composite operation to default to avoid side-effects on other UI elements
+  ctx.globalCompositeOperation = originalCompositeOp;
 };
 
 export const renderPageForExport = (pageIndex) => {
-  clearCanvas();
   const state = getState();
+  const originalCompositeOp = ctx.globalCompositeOperation;
+
+  clearCanvas();
   ctx.fillStyle = "white";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   if (state.backgroundImage) {
-    // MODIFIED: Also fix the export rendering
     ctx.drawImage(state.backgroundImage, 0, 0, canvas.width, canvas.height);
   }
   if (state.pages[pageIndex]) {
@@ -101,7 +122,6 @@ export const renderPageForExport = (pageIndex) => {
       else if (obj.type === 'image') drawImage(obj);
     });
   }
-};
 
-// This function is no longer needed here, as sizing is handled in index.js
-// export const setupCanvasScaling = () => { ... };
+  ctx.globalCompositeOperation = originalCompositeOp;
+};

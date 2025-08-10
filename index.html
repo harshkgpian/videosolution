@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Professional Drawing & Recording Canvas</title>
-    <!-- NEW: Add this line to link your new icon -->
   <link rel="icon" type="image/svg+xml" href="images/logo.png">
 
   <!-- CSS -->
@@ -18,12 +17,13 @@
 </head>
 <body>
 
-  <!-- Sidebar (No changes here) -->
+  <!-- Sidebar -->
   <aside class="sidebar">
     <div class="tool-group">
       <h4>Tools</h4>
       <button id="selectTool" title="Select Tool (V)"><i class="fa-solid fa-hand-pointer"></i><span>Select</span></button>
       <button id="pencil" class="active" title="Pencil (P)"><i class="fa-solid fa-pencil"></i><span>Pencil</span></button>
+      <button id="highlighter" title="Highlighter (H)"><i class="fa-solid fa-highlighter"></i><span>Highlight</span></button>
       <button id="eraser" title="Eraser (E)"><i class="fa-solid fa-eraser"></i><span>Eraser</span></button>
     </div>
     <div class="tool-group">
@@ -36,7 +36,8 @@
     </div>
     <div class="tool-group">
       <h4>Brush</h4>
-      <div class="control-row"><div class="control-item"><label for="size">Size</label><select id="size" title="Brush Size"><option value="1.5">XF</option><option value="2.5" selected>F</option><option value="5">M</option><option value="7">T</option><option value="12">XT</option></select></div><div class="control-item"><label for="color">Color</label><select id="color" title="Color"><option value="#000000">⚫</option><option value="#1e40af">🔵</option><option value="#dc2626">🔴</option><option value="#047857">🟢</option></select></div></div>
+      <!-- MODIFIED: Replaced the green color option with yellow -->
+      <div class="control-row"><div class="control-item"><label for="size">Size</label><select id="size" title="Brush Size"><option value="1.5">XF</option><option value="2.5" selected>F</option><option value="5">M</option><option value="7">T</option><option value="12">XT</option></select></div><div class="control-item"><label for="color">Color</label><select id="color" title="Color"><option value="#000000">⚫</option><option value="#1e40af">🔵</option><option value="#dc2626">🔴</option><option value="#facc15">🟡</option></select></div></div>
     </div>
     <div class="tool-group">
       <h4>Objects</h4>
@@ -56,7 +57,7 @@
     </div>
   </aside>
 
-  <!-- Main Content Area (No changes here) -->
+  <!-- Main Content Area -->
   <main class="main-content">
     <div class="canvas-container"><canvas id="drawingCanvas"></canvas></div>
   </main>
@@ -81,7 +82,6 @@
     </div>
   </div>
 
-  <!-- NEW: Modal for saving the recording -->
   <div id="recordingNameModal" class="modal">
     <div class="modal-content">
       <h3>Save Recording</h3>
