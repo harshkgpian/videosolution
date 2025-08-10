@@ -33,41 +33,66 @@ const setupToolButtons = () => {
     });
 };
 
+// --- MODIFIED: This function is fundamentally refactored for a robust fix ---
 const setupCanvasEventListeners = () => {
     const { canvas: canvasEl } = elements;
-    canvasEl.addEventListener('pointerdown', (e) => {
-        if (recorder.isRecording()) recorder.stopPinger();
-        if (e.button === 5) {
-            e.preventDefault();
-            canvas.setEraserButtonPressed(true);
-            elements.eraserBtn.click();
-        } 
-        else if (e.button === 2) {
-            canvas.setRightMouseDown(true);
-            elements.eraserBtn.click();
+
+    // This central function finalizes any drawing action and cleans up the state.
+    const endDrawingAction = (e) => {
+        // Only run this logic if we were actually in a drawing state.
+        if (!canvas.getState().isDrawing) return;
+
+        // Finalize the stroke or action. This is the most critical part.
+        canvas.onPointerUp(e);
+
+        // Restart the recorder's pinger if it needs to be running.
+        if (recorder.isRecording() && !recorder.getIsPaused()) {
+            recorder.startPinger();
         }
-        canvas.onPointerDown(e);
-    });
 
-    canvasEl.addEventListener('pointermove', canvas.onPointerMove);
-
-    const onPointerUpOrOut = (e) => {
-        if (recorder.isRecording() && !recorder.getIsPaused()) recorder.startPinger();
+        // Handle reverting from the temporary eraser tool.
         if (canvas.getEraserButtonPressed()) {
             canvas.setEraserButtonPressed(false);
             elements.pencilBtn.click();
-        }
-        else if (canvas.getRightMouseDown()) {
+        } else if (canvas.getRightMouseDown()) {
             canvas.setRightMouseDown(false);
             elements.pencilBtn.click();
         }
-        canvas.onPointerUp(e);
     };
 
-    canvasEl.addEventListener('pointerup', onPointerUpOrOut);
-    canvasEl.addEventListener('pointerleave', () => { if (!canvas.getState().isDrawing) canvas.renderPage(); });
+    // 1. Listener for starting an action on the canvas.
+    canvasEl.addEventListener('pointerdown', (e) => {
+        // If recording, we must stop the pinger to allow for a new drawing to be rendered.
+        if (recorder.isRecording()) {
+            recorder.stopPinger();
+        }
+
+        // Handle temporary eraser tool via pen buttons or right-click.
+        if (e.button === 5) { // Dedicated eraser button on stylus
+            e.preventDefault();
+            canvas.setEraserButtonPressed(true);
+            elements.eraserBtn.click();
+        } else if (e.button === 2) { // Right-click / Barrel button
+            canvas.setRightMouseDown(true);
+            elements.eraserBtn.click();
+        }
+        
+        // Let the canvas module handle the start of the drawing/selection.
+        canvas.onPointerDown(e);
+    });
+
+    // 2. Listener for movement on the canvas.
+    canvasEl.addEventListener('pointermove', canvas.onPointerMove);
+
+    // 3. THE DEFINITIVE FIX: Global listener to catch "lost" pointer events.
+    // This is the safety net that fixes the double-click bug. It catches any pointer release
+    // that happens *anywhere*, ensuring the drawing state is never stuck.
+    window.addEventListener('pointerup', endDrawingAction);
+
+    // Prevent context menu from interfering.
     canvasEl.addEventListener('contextmenu', (e) => e.preventDefault());
 };
+
 
 const setupActionButtons = () => {
     elements.savePdfBtn.addEventListener('click', () => file.saveDrawing(false));
@@ -182,25 +207,17 @@ const setupBackgroundControls = () => {
     });
 };
 
-// --- MODIFIED: This function now manages the recorder's pinger to prevent visual bugs ---
 const setupPageControls = () => {
     const handlePageChange = (direction) => {
-        // If recording, stop the pinger to prevent it from drawing the old page content.
         if (recorder.isRecording()) {
             recorder.stopPinger();
         }
-
-        // Change the page and update the UI.
         canvas.changePage(direction);
         updatePageInfo();
-
-        // If recording (and not paused), restart the pinger. It will now have a fresh
-        // snapshot of the new, correct page content.
         if (recorder.isRecording() && !recorder.getIsPaused()) {
             recorder.startPinger();
         }
     };
-
     elements.prevPageBtn.addEventListener('click', () => handlePageChange('prev'));
     elements.nextPageBtn.addEventListener('click', () => handlePageChange('next'));
 };
@@ -273,7 +290,7 @@ const setupKeyboardShortcuts = () => {
 
 export const initUI = () => {
     setupToolButtons();
-    setupCanvasEventListeners();
+    setupCanvasEventListeners(); 
     setupActionButtons();
     setupRecording();
     setupImageControls();
