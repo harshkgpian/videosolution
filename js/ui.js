@@ -32,24 +32,19 @@ const setupToolButtons = () => {
     });
 };
 
-// --- MODIFIED: This function now handles stylus button events ---
 const setupCanvasEventListeners = () => {
     const { canvas: canvasEl } = elements;
     canvasEl.addEventListener('pointerdown', (e) => {
         if (recorder.isRecording()) recorder.stopPinger();
-
-        // Check for the dedicated eraser button on a stylus (e.g., Wacom, Surface Pen).
         if (e.button === 5) {
-            e.preventDefault(); // Prevent default browser actions for this button.
+            e.preventDefault();
             canvas.setEraserButtonPressed(true);
             elements.eraserBtn.click();
         } 
-        // Check for right-click, often the barrel button on a stylus.
         else if (e.button === 2) {
             canvas.setRightMouseDown(true);
             elements.eraserBtn.click();
         }
-
         canvas.onPointerDown(e);
     });
 
@@ -57,27 +52,21 @@ const setupCanvasEventListeners = () => {
 
     const onPointerUpOrOut = (e) => {
         if (recorder.isRecording() && !recorder.getIsPaused()) recorder.startPinger();
-
-        // If the pen's dedicated eraser button was released, switch back to the pencil tool.
         if (canvas.getEraserButtonPressed()) {
             canvas.setEraserButtonPressed(false);
             elements.pencilBtn.click();
         }
-        // If the right mouse button (or barrel button) was released, switch back to the pencil tool.
         else if (canvas.getRightMouseDown()) {
             canvas.setRightMouseDown(false);
             elements.pencilBtn.click();
         }
-
         canvas.onPointerUp(e);
     };
 
     canvasEl.addEventListener('pointerup', onPointerUpOrOut);
     canvasEl.addEventListener('pointerleave', () => { if (!canvas.getState().isDrawing) canvas.renderPage(); });
-    // Prevent the context menu from appearing when a stylus button is pressed.
     canvasEl.addEventListener('contextmenu', (e) => e.preventDefault());
 };
-
 
 const setupActionButtons = () => {
     elements.savePdfBtn.addEventListener('click', () => file.saveDrawing(false));
@@ -219,10 +208,57 @@ const setupCanvasSizeModal = () => {
     });
 };
 
+// --- MODIFIED: This function now includes the paste event listener ---
 const setupKeyboardShortcuts = () => {
+    // --- NEW: Add event listener for pasting images ---
+    document.addEventListener('paste', async (e) => {
+        // Prevent the browser's default paste action.
+        e.preventDefault();
+
+        // Check if the focused element is an input; if so, do nothing.
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') {
+            return;
+        }
+
+        try {
+            // Read the contents of the clipboard.
+            const clipboardItems = await navigator.clipboard.read();
+
+            // Loop through the clipboard items to find an image.
+            for (const item of clipboardItems) {
+                // Find the first item type that is an image.
+                const imageType = item.types.find(type => type.startsWith('image/'));
+                
+                if (imageType) {
+                    // Get the image data as a blob.
+                    const blob = await item.getType(imageType);
+                    
+                    // Use a FileReader to convert the blob to a base64 Data URL.
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        // Add the image to the canvas using the existing function.
+                        canvas.addImage(event.target.result);
+                    };
+                    reader.readAsDataURL(blob);
+
+                    // Break the loop once the first image is found and processed.
+                    break; 
+                }
+            }
+        } catch (err) {
+            console.error('Failed to read clipboard contents: ', err);
+            // You could optionally alert the user that pasting failed.
+            // alert('Could not paste image. Please ensure you have granted clipboard permissions.');
+        }
+    });
+
     document.addEventListener('keydown', (e) => {
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+
         const isCtrl = e.ctrlKey || e.metaKey;
+
+        // The paste logic is handled by the 'paste' event, so we don't need a Ctrl+V check here.
+
         if (!isCtrl) {
             switch (e.key.toLowerCase()) {
                 case 'p': e.preventDefault(); elements.pencilBtn.click(); break;
