@@ -19,7 +19,6 @@ export const getCanvasContext = () => ({ canvas: elements.canvas, ctx: elements.
 
 export const setTool = (toolName) => { 
     state.tool = toolName;
-    // MODIFICATION: Deselect object when switching to a non-select tool for clarity.
     if (toolName !== 'select') {
         state.selectedObject = null;
         renderPage();
@@ -57,13 +56,9 @@ export const addImage = (imageDataUrl) => {
 
         if (!state.pages[pageIndex]) state.pages[pageIndex] = [];
         state.pages[pageIndex].push(newImage);
-        
-        // MODIFICATION: Revert to the intuitive behavior. After adding an image,
-        // we select it and activate the select tool so the user can manipulate it.
         state.selectedObject = newImage;
         setTool('select');
-        elements.selectToolBtn.click(); // This is crucial to update the UI correctly.
-        
+        elements.selectToolBtn.click();
         renderPage();
     };
 };
@@ -77,25 +72,17 @@ export const deleteSelectedObject = () => {
     }
 };
 
-// --- MODIFIED: This function is rewritten to be more robust ---
 export const changePage = (direction) => {
-  // 1. Deselect any object before changing pages.
   state.selectedObject = null;
-
-  // 2. Update the page number based on the direction.
   if (direction === 'prev' && state.currentPage > 1) {
     state.currentPage--;
   } else if (direction === 'next') {
     state.currentPage++;
-    // Ensure the data array exists for the new page.
     const newPageIndex = state.currentPage - 1;
     if (newPageIndex >= state.pages.length) {
       state.pages.push([]);
     }
   }
-
-  // 3. CRUCIAL FIX: Immediately re-render the canvas.
-  // This clears the old content and draws the new page's content (or an empty page).
   renderPage();
 };
 
@@ -129,5 +116,9 @@ export const adjustCanvasToBrowserSize = () => {
   setCanvasSize(rect.width, rect.height);
 };
 
+// --- MODIFIED: Added functions to manage stylus eraser button state ---
 export const setRightMouseDown = (isDown) => { state.isRightMouseDown = isDown; };
 export const getRightMouseDown = () => state.isRightMouseDown;
+
+export const setEraserButtonPressed = (isDown) => { state.isEraserButtonPressed = isDown; };
+export const getEraserButtonPressed = () => state.isEraserButtonPressed;

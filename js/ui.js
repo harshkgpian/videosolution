@@ -23,10 +23,7 @@ const setupToolButtons = () => {
     tools.forEach(tool => {
         tool.btn.addEventListener('click', () => {
             canvas.setTool(tool.name);
-
-            // MODIFICATION: Explicitly clear any inline cursor style left over by the select tool.
             elements.canvas.style.cursor = '';
-            
             elements.canvas.classList.remove(...cursorClasses);
             elements.canvas.classList.add(tool.cursorClass);
             tools.forEach(t => t.btn.classList.remove('active'));
@@ -35,61 +32,79 @@ const setupToolButtons = () => {
     });
 };
 
+// --- MODIFIED: This function now handles stylus button events ---
 const setupCanvasEventListeners = () => {
     const { canvas: canvasEl } = elements;
     canvasEl.addEventListener('pointerdown', (e) => {
         if (recorder.isRecording()) recorder.stopPinger();
-        if (e.button === 2) {
+
+        // Check for the dedicated eraser button on a stylus (e.g., Wacom, Surface Pen).
+        if (e.button === 5) {
+            e.preventDefault(); // Prevent default browser actions for this button.
+            canvas.setEraserButtonPressed(true);
+            elements.eraserBtn.click();
+        } 
+        // Check for right-click, often the barrel button on a stylus.
+        else if (e.button === 2) {
             canvas.setRightMouseDown(true);
             elements.eraserBtn.click();
         }
+
         canvas.onPointerDown(e);
     });
+
     canvasEl.addEventListener('pointermove', canvas.onPointerMove);
+
     const onPointerUpOrOut = (e) => {
         if (recorder.isRecording() && !recorder.getIsPaused()) recorder.startPinger();
-        if (canvas.getRightMouseDown()) {
+
+        // If the pen's dedicated eraser button was released, switch back to the pencil tool.
+        if (canvas.getEraserButtonPressed()) {
+            canvas.setEraserButtonPressed(false);
+            elements.pencilBtn.click();
+        }
+        // If the right mouse button (or barrel button) was released, switch back to the pencil tool.
+        else if (canvas.getRightMouseDown()) {
             canvas.setRightMouseDown(false);
             elements.pencilBtn.click();
         }
+
         canvas.onPointerUp(e);
     };
+
     canvasEl.addEventListener('pointerup', onPointerUpOrOut);
     canvasEl.addEventListener('pointerleave', () => { if (!canvas.getState().isDrawing) canvas.renderPage(); });
+    // Prevent the context menu from appearing when a stylus button is pressed.
     canvasEl.addEventListener('contextmenu', (e) => e.preventDefault());
 };
+
 
 const setupActionButtons = () => {
     elements.savePdfBtn.addEventListener('click', () => file.saveDrawing(false));
 };
 
-// MODIFIED: This function now handles the three visual states for recording
 const updateRecordingUI = () => {
     const { recordBtn, stopBtn } = elements;
     const recordText = recordBtn.querySelector('span');
     const recordIcon = recordBtn.querySelector('i');
 
     if (!recorder.isRecording()) {
-        // State: STOPPED
-        recordBtn.classList.remove('recording', 'paused'); // Remove all recording classes
+        recordBtn.classList.remove('recording', 'paused');
         recordIcon.className = 'fa-solid fa-microphone';
         recordText.textContent = 'Record';
         recordBtn.title = 'Start Recording';
         stopBtn.style.display = 'none';
     } else {
-        // State: RECORDING or PAUSED
         stopBtn.style.display = 'flex';
             if (recorder.getIsPaused()) {
-            // State: PAUSED
-            recordBtn.classList.remove('recording'); // Remove red pulse
-            recordBtn.classList.add('paused');      // Add white style
+            recordBtn.classList.remove('recording');
+            recordBtn.classList.add('paused');
             recordIcon.className = 'fa-solid fa-play';
             recordText.textContent = 'R';
             recordBtn.title = 'Resume Recording';
         } else {
-            // State: ACTIVELY RECORDING
-            recordBtn.classList.remove('paused');   // Remove white style
-            recordBtn.classList.add('recording');   // Add red pulse
+            recordBtn.classList.remove('paused');
+            recordBtn.classList.add('recording');
             recordIcon.className = 'fa-solid fa-pause';
             recordText.textContent = 'P';
             recordBtn.title = 'Pause Recording';

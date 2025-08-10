@@ -2,10 +2,10 @@
 export const state = {
   isDrawing: false,
   isRightMouseDown: false,
+  isEraserButtonPressed: false, // NEW: Tracks if the stylus eraser button is down
   tool: 'pencil', // 'pencil', 'eraser', 'select'
   currentPage: 1,
   pages: [[]], // e.g., [[{type: 'stroke', ...}, {type: 'image', ...}]]
-  // REMOVED: undoStack and redoStack are gone
   backgroundImage: null,
   
   // State for select tool
@@ -28,4 +28,6 @@ export function resetState() {
   state.selectedObject = null;
   state.currentStroke = null;
   state.isDrawing = false;
+  state.isRightMouseDown = false;
+  state.isEraserButtonPressed = false;
 }
