@@ -13,7 +13,6 @@ const updatePageInfo = () => {
     elements.nextPageBtn.disabled = currentPage >= 200;
 };
 
-// MODIFIED: Complete rewrite of tool button logic to handle individual settings
 const setupToolButtons = () => {
     const tools = [
         { btn: elements.selectToolBtn, name: 'select', cursorClass: 'cursor-default' },
@@ -27,7 +26,6 @@ const setupToolButtons = () => {
         const state = canvas.getState();
         const oldToolName = state.tool;
 
-        // 1. Save settings for the tool we are switching FROM
         if (oldToolName === 'pencil' || oldToolName === 'highlighter') {
             state.toolSettings[oldToolName].size = elements.sizeSelect.value;
             state.toolSettings[oldToolName].color = elements.colorSelect.value;
@@ -35,10 +33,8 @@ const setupToolButtons = () => {
             state.toolSettings[oldToolName].size = elements.sizeSelect.value;
         }
 
-        // 2. Set the new tool
         canvas.setTool(newToolName);
 
-        // 3. Load settings for the new tool and update the UI
         const newSettings = state.toolSettings[newToolName];
         if (newSettings) {
             if (newSettings.size) {
@@ -48,12 +44,10 @@ const setupToolButtons = () => {
                 elements.colorSelect.value = newSettings.color;
                 elements.colorSelect.disabled = false;
             } else {
-                // Disable color picker for tools that don't use it (like eraser)
                 elements.colorSelect.disabled = true;
             }
         }
         
-        // 4. Update UI styles (cursor and active button)
         const activeTool = tools.find(t => t.name === newToolName);
         if (activeTool) {
             elements.canvas.style.cursor = '';
@@ -69,8 +63,29 @@ const setupToolButtons = () => {
     });
 };
 
+// NEW: This function fixes the bug where color/size changes weren't immediate.
+const setupBrushControls = () => {
+    const updateCurrentToolSettings = () => {
+        const state = canvas.getState();
+        const currentTool = state.tool;
 
-// MODIFIED: Updated to remember the previous tool before activating the eraser
+        // Ensure the current tool has settings to update
+        if (state.toolSettings[currentTool]) {
+            // Update size if the tool has a size property
+            if (state.toolSettings[currentTool].hasOwnProperty('size')) {
+                state.toolSettings[currentTool].size = elements.sizeSelect.value;
+            }
+            // Update color if the tool has a color property
+            if (state.toolSettings[currentTool].hasOwnProperty('color')) {
+                state.toolSettings[currentTool].color = elements.colorSelect.value;
+            }
+        }
+    };
+
+    elements.sizeSelect.addEventListener('change', updateCurrentToolSettings);
+    elements.colorSelect.addEventListener('change', updateCurrentToolSettings);
+};
+
 const setupCanvasEventListeners = () => {
     const { canvas: canvasEl } = elements;
 
@@ -81,18 +96,16 @@ const setupCanvasEventListeners = () => {
             recorder.startPinger();
         }
 
-        // If the eraser was triggered by stylus button, switch back to the PREVIOUS tool
         if (canvas.getEraserButtonPressed() || canvas.getRightMouseDown()) {
             canvas.setEraserButtonPressed(false);
             canvas.setRightMouseDown(false);
             
             const toolToReturnTo = canvas.getPreEraserTool();
-            // Find the button for the tool and click it to restore its state
             const toolButton = document.getElementById(toolToReturnTo);
             if(toolButton && toolToReturnTo !== 'eraser') {
                 toolButton.click();
             } else {
-                elements.pencilBtn.click(); // Fallback to pencil
+                elements.pencilBtn.click();
             }
         }
     };
@@ -102,11 +115,10 @@ const setupCanvasEventListeners = () => {
             recorder.stopPinger();
         }
         
-        const isEraserTrigger = e.button === 5 || e.button === 2; // button 5 is stylus eraser
+        const isEraserTrigger = e.button === 5 || e.button === 2;
         
         if (isEraserTrigger && canvas.getState().tool !== 'eraser') {
             e.preventDefault();
-            // Remember the current tool before switching to eraser
             canvas.setPreEraserTool(canvas.getState().tool);
             if (e.button === 5) canvas.setEraserButtonPressed(true);
             if (e.button === 2) canvas.setRightMouseDown(true);
@@ -429,6 +441,7 @@ export const showCurrentUrl = () => {
 
 export const initUI = () => {
     setupToolButtons();
+    setupBrushControls(); // MODIFIED: Added this line to activate the new fix.
     setupCanvasEventListeners(); 
     setupActionButtons();
     setupRecording();
@@ -438,6 +451,5 @@ export const initUI = () => {
     setupCanvasSizeModal();
     setupKeyboardShortcuts();
     updatePageInfo();
-    // This will now correctly load the default pencil settings into the UI
     elements.pencilBtn.click();
 };
