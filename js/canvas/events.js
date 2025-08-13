@@ -26,7 +26,6 @@ const getSmoothedCoordinates = (e) => {
 const eraseAtPoint = (point) => {
     const pageIndex = state.currentPage - 1;
     let hasChanged = false;
-    // MODIFIED: Use the eraser size from toolSettings
     const eraseSize = parseFloat(state.toolSettings.eraser.size) + 10;
     state.pages[pageIndex].forEach(obj => {
         if (obj.type === 'stroke' && !obj.isErased && isPointOnStroke(point, obj, eraseSize)) {
@@ -39,17 +38,43 @@ const eraseAtPoint = (point) => {
     }
 };
 
+// NEW: Helper to check for click on the crop icon
+const isClickOnCropIcon = (point, imageObj) => {
+    if (!imageObj) return false;
+    const iconSize = 24;
+    const iconPadding = 5;
+    const iconX = imageObj.x + imageObj.width + iconPadding;
+    const iconY = imageObj.y - iconSize - iconPadding;
+    return (
+        point.x >= iconX &&
+        point.x <= iconX + iconSize &&
+        point.y >= iconY &&
+        point.y <= iconY + iconSize
+    );
+};
+
 export const onPointerDown = (e) => {
     state.isDrawing = true;
     state.lastPoint = getTransformedCoordinates(e);
 
     if (state.tool === 'select') {
+        // NEW: Check for crop icon click first
+        if (isClickOnCropIcon(state.lastPoint, state.selectedObject)) {
+            state.cropModeActive = !state.cropModeActive;
+            state.isDrawing = false; // Prevent dragging
+            renderPage();
+            return;
+        }
+
         const handle = state.selectedObject ? getHandleAtPosition(state.lastPoint, state.selectedObject) : null;
         if (handle) {
             state.actionState = 'resizing';
             state.resizeHandle = handle;
         } else {
             const object = getObjectAtPosition(state.lastPoint);
+            if (object !== state.selectedObject) {
+                state.cropModeActive = false; // Deselecting, so turn off crop mode
+            }
             state.selectedObject = object;
             if (object) {
                 state.actionState = 'moving';
@@ -59,7 +84,6 @@ export const onPointerDown = (e) => {
             }
         }
     } else if (state.tool === 'pencil' || state.tool === 'highlighter') { 
-        // MODIFIED: Use the saved settings for the current tool from the state object
         const toolSettings = state.toolSettings[state.tool];
         state.currentStroke = {
             type: 'stroke',
@@ -79,15 +103,21 @@ export const onPointerMove = (e) => {
     const currentPoint = isDrawingTool ? getSmoothedCoordinates(e) : getTransformedCoordinates(e);
     
     if (state.tool === 'select' && !state.isDrawing) {
-        const handle = state.selectedObject ? getHandleAtPosition(currentPoint, state.selectedObject) : null;
-        if (handle) {
-            if (['tl', 'br'].includes(handle)) elements.canvas.style.cursor = 'nwse-resize';
-            else if (['tr', 'bl'].includes(handle)) elements.canvas.style.cursor = 'nesw-resize';
-            else if (['tm', 'bm'].includes(handle)) elements.canvas.style.cursor = 'ns-resize';
-            else elements.canvas.style.cursor = 'ew-resize';
+        let cursor = '';
+        if (isClickOnCropIcon(currentPoint, state.selectedObject)) {
+            cursor = 'pointer';
         } else {
-            elements.canvas.style.cursor = getObjectAtPosition(currentPoint) ? 'move' : '';
+            const handle = state.selectedObject ? getHandleAtPosition(currentPoint, state.selectedObject) : null;
+            if (handle) {
+                if (['tl', 'br'].includes(handle)) cursor = 'nwse-resize';
+                else if (['tr', 'bl'].includes(handle)) cursor = 'nesw-resize';
+                else if (['tm', 'bm'].includes(handle)) cursor = 'ns-resize';
+                else cursor = 'ew-resize';
+            } else if (getObjectAtPosition(currentPoint)) {
+                cursor = 'move';
+            }
         }
+        elements.canvas.style.cursor = cursor;
     }
 
     if (!state.isDrawing) return;
@@ -98,12 +128,56 @@ export const onPointerMove = (e) => {
             obj.x = currentPoint.x - state.startDragOffset.x;
             obj.y = currentPoint.y - state.startDragOffset.y;
         } else if (state.actionState === 'resizing') {
-            const { x, y, width, height } = obj;
-            const originalRight = x + width, originalBottom = y + height;
-            if (state.resizeHandle.includes('l')) { obj.width = originalRight - currentPoint.x; obj.x = currentPoint.x; }
-            if (state.resizeHandle.includes('r')) { obj.width = currentPoint.x - x; }
-            if (state.resizeHandle.includes('t')) { obj.height = originalBottom - currentPoint.y; obj.y = currentPoint.y; }
-            if (state.resizeHandle.includes('b')) { obj.height = currentPoint.y - y; }
+            // MODIFIED: Handle both resizing and cropping
+            const { x, y, width, height, crop, img } = obj;
+            const originalRight = x + width;
+            const originalBottom = y + height;
+            
+            // Ratios of the original image to the displayed size.
+            const ratioX = crop.width / width;
+            const ratioY = crop.height / height;
+
+            // Handle Left
+            if (state.resizeHandle.includes('l')) {
+                const newX = currentPoint.x;
+                const deltaX = x - newX;
+                if (state.cropModeActive) {
+                    crop.x += deltaX * ratioX;
+                    crop.width -= deltaX * ratioX;
+                }
+                obj.x = newX;
+                obj.width += deltaX;
+            }
+            // Handle Right
+            if (state.resizeHandle.includes('r')) {
+                const newWidth = currentPoint.x - x;
+                const deltaWidth = newWidth - width;
+                 if (state.cropModeActive) {
+                    crop.width += deltaWidth * ratioX;
+                }
+                obj.width = newWidth;
+            }
+            // Handle Top
+            if (state.resizeHandle.includes('t')) {
+                const newY = currentPoint.y;
+                const deltaY = y - newY;
+                if (state.cropModeActive) {
+                    crop.y += deltaY * ratioY;
+                    crop.height -= deltaY * ratioY;
+                }
+                obj.y = newY;
+                obj.height += deltaY;
+            }
+            // Handle Bottom
+            if (state.resizeHandle.includes('b')) {
+                const newHeight = currentPoint.y - y;
+                const deltaHeight = newHeight - height;
+                if (state.cropModeActive) {
+                    crop.height += deltaHeight * ratioY;
+                }
+                obj.height = newHeight;
+            }
+
             if (obj.width < 10) obj.width = 10;
             if (obj.height < 10) obj.height = 10;
         }

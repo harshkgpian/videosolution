@@ -11,7 +11,6 @@ export { getState };
 
 export const initCanvas = () => {
   resetState();
-  // Set default on load
   setCanvasSize(1280, 720);
 };
 
@@ -21,6 +20,7 @@ export const setTool = (toolName) => {
     state.tool = toolName;
     if (toolName !== 'select') {
         state.selectedObject = null;
+        state.cropModeActive = false; // NEW: Deactivate crop mode when switching tools
         renderPage();
     }
 };
@@ -52,6 +52,13 @@ export const addImage = (imageDataUrl) => {
             width: newWidth, 
             height: newHeight,
             img,
+            // NEW: Add crop information. Initially, it's the full image.
+            crop: {
+              x: 0,
+              y: 0,
+              width: img.naturalWidth,
+              height: img.naturalHeight,
+            }
         };
 
         if (!state.pages[pageIndex]) state.pages[pageIndex] = [];
@@ -68,12 +75,14 @@ export const deleteSelectedObject = () => {
         const pageIndex = state.currentPage - 1;
         state.pages[pageIndex] = state.pages[pageIndex].filter(obj => obj.id !== state.selectedObject.id);
         state.selectedObject = null;
+        state.cropModeActive = false; // NEW: Deactivate crop mode on delete
         renderPage();
     }
 };
 
 export const changePage = (direction) => {
   state.selectedObject = null;
+  state.cropModeActive = false; // NEW: Deactivate crop mode on page change
   if (direction === 'prev' && state.currentPage > 1) {
     state.currentPage--;
   } else if (direction === 'next') {
@@ -85,7 +94,6 @@ export const changePage = (direction) => {
   }
   renderPage();
 };
-
 
 export const setBackgroundImage = async (imageDataUrl) => {
   if (!imageDataUrl) { state.backgroundImage = null; renderPage(); return; }
@@ -116,13 +124,11 @@ export const adjustCanvasToBrowserSize = () => {
   setCanvasSize(rect.width, rect.height);
 };
 
-// --- MODIFIED: Added functions to manage stylus eraser button state ---
 export const setRightMouseDown = (isDown) => { state.isRightMouseDown = isDown; };
 export const getRightMouseDown = () => state.isRightMouseDown;
 
 export const setEraserButtonPressed = (isDown) => { state.isEraserButtonPressed = isDown; };
 export const getEraserButtonPressed = () => state.isEraserButtonPressed;
 
-// --- NEW: Added helper functions for remembering the tool before erasing ---
 export const setPreEraserTool = (tool) => { state.preEraserTool = tool; };
 export const getPreEraserTool = () => state.preEraserTool;

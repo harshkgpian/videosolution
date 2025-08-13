@@ -8,7 +8,7 @@ const setupImageControls = () => {
         const file = e.target.files[0];
         if (!file) return;
         const reader = new FileReader();
-        reader.onload = (event) => canvas.addImage(event.target.result);
+        reader.onload = (event) => canvas.addImage(event.target.recanvasEventssult);
         reader.readAsDataURL(file);
         e.target.value = '';
     });

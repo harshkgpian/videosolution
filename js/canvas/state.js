@@ -2,27 +2,18 @@
 export const state = {
   isDrawing: false,
   isRightMouseDown: false,
-  isEraserButtonPressed: false, 
+  isEraserButtonPressed: false,
   tool: 'pencil', // 'pencil', 'highlighter', 'eraser', 'select'
-  preEraserTool: 'pencil', // NEW: Remembers the tool before eraser was activated
+  preEraserTool: 'pencil', 
   currentPage: 1,
   pages: [[]], 
   backgroundImage: null,
   
-  // NEW: Object to store individual settings for each tool
   toolSettings: {
-    pencil: {
-      size: '2.5',      // Default 'F' size
-      color: '#000000', // Default black
-    },
-    highlighter: {
-      size: '7',       // Default 'XT' size
-      color: '#facc15', // Default yellow
-    },
-    eraser: {
-      size: '12',       // Default 'XT' size
-    },
-    select: {} // No settings needed for select
+    pencil: { size: '2.5', color: '#000000' },
+    highlighter: { size: '7', color: '#facc15' },
+    eraser: { size: '12' },
+    select: {}
   },
 
   // State for select tool
@@ -30,6 +21,7 @@ export const state = {
   actionState: null, // null, 'moving', 'resizing'
   resizeHandle: null, 
   startDragOffset: { x: 0, y: 0 },
+  cropModeActive: false, // NEW: Tracks if we are in crop mode
 
   // Stroke-specific state
   currentStroke: null,
@@ -47,4 +39,5 @@ export function resetState() {
   state.isDrawing = false;
   state.isRightMouseDown = false;
   state.isEraserButtonPressed = false;
+  state.cropModeActive = false; // NEW: Reset crop mode as well
 }
