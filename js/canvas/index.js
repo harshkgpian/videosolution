@@ -122,3 +122,7 @@ export const getRightMouseDown = () => state.isRightMouseDown;
 
 export const setEraserButtonPressed = (isDown) => { state.isEraserButtonPressed = isDown; };
 export const getEraserButtonPressed = () => state.isEraserButtonPressed;
+
+// --- NEW: Added helper functions for remembering the tool before erasing ---
+export const setPreEraserTool = (tool) => { state.preEraserTool = tool; };
+export const getPreEraserTool = () => state.preEraserTool;

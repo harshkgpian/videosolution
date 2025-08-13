@@ -1,28 +1,78 @@
 // js/main.js
 import { initCanvas, setBackgroundImage, setCanvasSize } from './canvas/index.js';
 import { initUI } from './ui.js';
+import { urlParams } from './urlParams.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
+  console.log('🚀 Initializing drawing application...');
+  
+  // Initialize canvas and UI first
   initCanvas();
   initUI();
 
-  const savedWidth = localStorage.getItem('canvasWidth');
-  const savedHeight = localStorage.getItem('canvasHeight');
+  try {
+    // Process URL parameters first (this might set canvas size)
+    await urlParams.processUrlParams();
+    
+    // Get predefined recording name from URL if available
+    const predefinedRecordingName = urlParams.getRecordingName();
+    if (predefinedRecordingName) {
+      console.log('📝 Predefined recording name:', predefinedRecordingName);
+    }
 
-  if (savedWidth && savedHeight) {
-    console.log(`Loading saved canvas size: ${savedWidth}x${savedHeight}`);
-    setCanvasSize(parseInt(savedWidth, 10), parseInt(savedHeight, 10));
-  } else {
-    console.log('No saved size, using default 1280x720.');
+    // Set canvas size (URL params take priority over saved/default)
+    const urlCanvasSize = urlParams.getCanvasSize();
+    if (urlCanvasSize) {
+      console.log(`📐 Setting canvas size from URL: ${urlCanvasSize.width}x${urlCanvasSize.height}`);
+      setCanvasSize(urlCanvasSize.width, urlCanvasSize.height);
+    } else {
+      // Fallback to saved size or default
+      const savedWidth = localStorage.getItem('canvasWidth');
+      const savedHeight = localStorage.getItem('canvasHeight');
+
+      if (savedWidth && savedHeight) {
+        console.log(`📐 Loading saved canvas size: ${savedWidth}x${savedHeight}`);
+        setCanvasSize(parseInt(savedWidth, 10), parseInt(savedHeight, 10));
+      } else {
+        console.log('📐 Using default canvas size: 1280x720');
+        setCanvasSize(1280, 720);
+      }
+    }
+
+    // Handle background image (URL params take priority)
+    const urlBackground = urlParams.getParam('background') || urlParams.getParam('bg');
+    if (urlBackground) {
+      console.log('🖼️ Background loaded from URL parameters');
+      // Background was already loaded in processUrlParams()
+    } else {
+      // Fallback to saved background or default
+      const savedBackground = localStorage.getItem('canvasBackground');
+      if (savedBackground) {
+        console.log('🖼️ Loading saved background...');
+        await setBackgroundImage(savedBackground);
+      } else {
+        console.log('🖼️ Loading default background...');
+        await setBackgroundImage('images/background.png');
+      }
+    }
+
+    console.log('✅ Application initialized successfully');
+
+    // Log available URL parameters for user reference
+    const params = urlParams.getParams();
+    if (Object.keys(params).length > 0) {
+      console.log('🔗 Active URL parameters:', params);
+    } else {
+      console.log('ℹ️ No URL parameters detected. You can use parameters like:');
+      console.log('   ?image=IMAGE_URL&recordingName=MyVideo&width=1920&height=1080');
+    }
+
+  } catch (error) {
+    console.error('❌ Error during initialization:', error);
+    
+    // Fallback initialization if URL processing fails
+    console.log('🔄 Falling back to default initialization...');
     setCanvasSize(1280, 720);
-  }
-
-  const savedBackground = localStorage.getItem('canvasBackground');
-  if (savedBackground) {
-    console.log('Found saved background, loading...');
-    await setBackgroundImage(savedBackground);
-  } else {
-    console.log('No saved background, loading default...');
     await setBackgroundImage('images/background.png');
   }
 });

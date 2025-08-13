@@ -26,8 +26,10 @@ const getSmoothedCoordinates = (e) => {
 const eraseAtPoint = (point) => {
     const pageIndex = state.currentPage - 1;
     let hasChanged = false;
+    // MODIFIED: Use the eraser size from toolSettings
+    const eraseSize = parseFloat(state.toolSettings.eraser.size) + 10;
     state.pages[pageIndex].forEach(obj => {
-        if (obj.type === 'stroke' && !obj.isErased && isPointOnStroke(point, obj)) {
+        if (obj.type === 'stroke' && !obj.isErased && isPointOnStroke(point, obj, eraseSize)) {
             obj.isErased = true;
             hasChanged = true;
         }
@@ -56,14 +58,16 @@ export const onPointerDown = (e) => {
                 state.actionState = null;
             }
         }
-    } else if (state.tool === 'pencil' || state.tool === 'highlighter') { // MODIFIED to include highlighter
+    } else if (state.tool === 'pencil' || state.tool === 'highlighter') { 
+        // MODIFIED: Use the saved settings for the current tool from the state object
+        const toolSettings = state.toolSettings[state.tool];
         state.currentStroke = {
             type: 'stroke',
             id: Date.now() + Math.random(),
             points: [state.lastPoint],
-            color: elements.colorSelect.value,
-            width: parseFloat(elements.sizeSelect.value),
-            tool: state.tool, // Store which tool created the stroke
+            color: toolSettings.color,
+            width: parseFloat(toolSettings.size),
+            tool: state.tool, 
             isErased: false,
         };
     }
@@ -113,7 +117,6 @@ export const onPointerMove = (e) => {
 
 export const onPointerUp = () => {
     if (!state.isDrawing) return;
-    // MODIFIED: Handle both pencil and highlighter for saving the stroke
     const isDrawingTool = state.tool === 'pencil' || state.tool === 'highlighter';
     if (isDrawingTool && state.currentStroke && state.currentStroke.points.length > 1) {
         const pageIndex = state.currentPage - 1;

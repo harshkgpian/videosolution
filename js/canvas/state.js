@@ -2,16 +2,33 @@
 export const state = {
   isDrawing: false,
   isRightMouseDown: false,
-  isEraserButtonPressed: false, // NEW: Tracks if the stylus eraser button is down
-  tool: 'pencil', // 'pencil', 'eraser', 'select'
+  isEraserButtonPressed: false, 
+  tool: 'pencil', // 'pencil', 'highlighter', 'eraser', 'select'
+  preEraserTool: 'pencil', // NEW: Remembers the tool before eraser was activated
   currentPage: 1,
-  pages: [[]], // e.g., [[{type: 'stroke', ...}, {type: 'image', ...}]]
+  pages: [[]], 
   backgroundImage: null,
   
+  // NEW: Object to store individual settings for each tool
+  toolSettings: {
+    pencil: {
+      size: '2.5',      // Default 'F' size
+      color: '#000000', // Default black
+    },
+    highlighter: {
+      size: '12',       // Default 'XT' size
+      color: '#facc15', // Default yellow
+    },
+    eraser: {
+      size: '12',       // Default 'XT' size
+    },
+    select: {} // No settings needed for select
+  },
+
   // State for select tool
   selectedObject: null,
   actionState: null, // null, 'moving', 'resizing'
-  resizeHandle: null, // e.g., 'tl', 'br', 'tm', etc.
+  resizeHandle: null, 
   startDragOffset: { x: 0, y: 0 },
 
   // Stroke-specific state

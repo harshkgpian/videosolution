@@ -3,6 +3,7 @@ import { elements } from './config.js';
 import * as canvas from './canvas/index.js';
 import * as file from './fileHandler.js';
 import * as recorder from './recorder.js';
+import { urlParams } from './urlParams.js';
 
 const updatePageInfo = () => {
     const { currentPage, pages } = canvas.getState();
@@ -12,6 +13,7 @@ const updatePageInfo = () => {
     elements.nextPageBtn.disabled = currentPage >= 200;
 };
 
+// MODIFIED: Complete rewrite of tool button logic to handle individual settings
 const setupToolButtons = () => {
     const tools = [
         { btn: elements.selectToolBtn, name: 'select', cursorClass: 'cursor-default' },
@@ -21,18 +23,54 @@ const setupToolButtons = () => {
     ];
     const cursorClasses = tools.map(t => t.cursorClass);
 
-    tools.forEach(tool => {
-        tool.btn.addEventListener('click', () => {
-            canvas.setTool(tool.name);
+    const switchTool = (newToolName) => {
+        const state = canvas.getState();
+        const oldToolName = state.tool;
+
+        // 1. Save settings for the tool we are switching FROM
+        if (oldToolName === 'pencil' || oldToolName === 'highlighter') {
+            state.toolSettings[oldToolName].size = elements.sizeSelect.value;
+            state.toolSettings[oldToolName].color = elements.colorSelect.value;
+        } else if (oldToolName === 'eraser') {
+            state.toolSettings[oldToolName].size = elements.sizeSelect.value;
+        }
+
+        // 2. Set the new tool
+        canvas.setTool(newToolName);
+
+        // 3. Load settings for the new tool and update the UI
+        const newSettings = state.toolSettings[newToolName];
+        if (newSettings) {
+            if (newSettings.size) {
+                elements.sizeSelect.value = newSettings.size;
+            }
+            if (newSettings.color) {
+                elements.colorSelect.value = newSettings.color;
+                elements.colorSelect.disabled = false;
+            } else {
+                // Disable color picker for tools that don't use it (like eraser)
+                elements.colorSelect.disabled = true;
+            }
+        }
+        
+        // 4. Update UI styles (cursor and active button)
+        const activeTool = tools.find(t => t.name === newToolName);
+        if (activeTool) {
             elements.canvas.style.cursor = '';
             elements.canvas.classList.remove(...cursorClasses);
-            elements.canvas.classList.add(tool.cursorClass);
+            elements.canvas.classList.add(activeTool.cursorClass);
             tools.forEach(t => t.btn.classList.remove('active'));
-            tool.btn.classList.add('active');
-        });
+            activeTool.btn.classList.add('active');
+        }
+    };
+
+    tools.forEach(tool => {
+        tool.btn.addEventListener('click', () => switchTool(tool.name));
     });
 };
 
+
+// MODIFIED: Updated to remember the previous tool before activating the eraser
 const setupCanvasEventListeners = () => {
     const { canvas: canvasEl } = elements;
 
@@ -42,12 +80,20 @@ const setupCanvasEventListeners = () => {
         if (recorder.isRecording() && !recorder.getIsPaused()) {
             recorder.startPinger();
         }
-        if (canvas.getEraserButtonPressed()) {
+
+        // If the eraser was triggered by stylus button, switch back to the PREVIOUS tool
+        if (canvas.getEraserButtonPressed() || canvas.getRightMouseDown()) {
             canvas.setEraserButtonPressed(false);
-            elements.pencilBtn.click();
-        } else if (canvas.getRightMouseDown()) {
             canvas.setRightMouseDown(false);
-            elements.pencilBtn.click();
+            
+            const toolToReturnTo = canvas.getPreEraserTool();
+            // Find the button for the tool and click it to restore its state
+            const toolButton = document.getElementById(toolToReturnTo);
+            if(toolButton && toolToReturnTo !== 'eraser') {
+                toolButton.click();
+            } else {
+                elements.pencilBtn.click(); // Fallback to pencil
+            }
         }
     };
 
@@ -55,14 +101,18 @@ const setupCanvasEventListeners = () => {
         if (recorder.isRecording()) {
             recorder.stopPinger();
         }
-        if (e.button === 5) {
+        
+        const isEraserTrigger = e.button === 5 || e.button === 2; // button 5 is stylus eraser
+        
+        if (isEraserTrigger && canvas.getState().tool !== 'eraser') {
             e.preventDefault();
-            canvas.setEraserButtonPressed(true);
-            elements.eraserBtn.click();
-        } else if (e.button === 2) {
-            canvas.setRightMouseDown(true);
+            // Remember the current tool before switching to eraser
+            canvas.setPreEraserTool(canvas.getState().tool);
+            if (e.button === 5) canvas.setEraserButtonPressed(true);
+            if (e.button === 2) canvas.setRightMouseDown(true);
             elements.eraserBtn.click();
         }
+        
         canvas.onPointerDown(e);
     });
 
@@ -104,9 +154,7 @@ const updateRecordingUI = () => {
     }
 };
 
-// Enhanced function to create downloadable video with proper metadata
 const downloadVideoWithMetadata = (blob, filename) => {
-    // Create a video element to test the blob
     const video = document.createElement('video');
     video.preload = 'metadata';
     video.muted = true;
@@ -115,7 +163,6 @@ const downloadVideoWithMetadata = (blob, filename) => {
     video.src = url;
     
     const downloadVideo = () => {
-        // Create download link
         const a = document.createElement('a');
         a.style.display = 'none';
         a.href = url;
@@ -123,14 +170,12 @@ const downloadVideoWithMetadata = (blob, filename) => {
         document.body.appendChild(a);
         a.click();
         
-        // Cleanup after a short delay
         setTimeout(() => {
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
         }, 100);
     };
     
-    // Try to load metadata first
     video.addEventListener('loadedmetadata', () => {
         console.log(`✅ Video metadata loaded successfully:`);
         console.log(`   Duration: ${video.duration} seconds`);
@@ -144,7 +189,6 @@ const downloadVideoWithMetadata = (blob, filename) => {
         downloadVideo();
     }, { once: true });
     
-    // Fallback: if metadata doesn't load within 5 seconds, download anyway
     setTimeout(() => {
         if (video.readyState === 0) {
             console.warn('⚠️ Metadata loading timeout, downloading video anyway');
@@ -152,24 +196,35 @@ const downloadVideoWithMetadata = (blob, filename) => {
         }
     }, 5000);
     
-    // Try to load the video
     video.load();
 };
 
 const handleRecordingSave = (blob) => {
     const { recordingNameModal, recordingNameInput, confirmRecordingSaveBtn, cancelRecordingSaveBtn } = elements;
-    const timestamp = new Date().toISOString().slice(0, 19).replace(/[-:T]/g, '');
     
-    // Determine file extension based on blob type
+    const predefinedName = sessionStorage.getItem('predefinedRecordingName');
+    let defaultName;
+    
+    if (predefinedName) {
+        defaultName = predefinedName;
+        console.log('📝 Using predefined recording name from URL:', predefinedName);
+        sessionStorage.removeItem('predefinedRecordingName');
+    } else {
+        const timestamp = new Date().toISOString().slice(0, 19).replace(/[-:T]/g, '');
+        defaultName = `recording-${timestamp}`;
+    }
+    
     const mimeType = blob.type;
-    let extension = '.webm'; // default
+    let extension = '.webm'; 
     if (mimeType.includes('mp4')) {
         extension = '.mp4';
     } else if (mimeType.includes('webm')) {
         extension = '.webm';
     }
     
-    recordingNameInput.value = `recording-${timestamp}${extension}`;
+    const filename = defaultName.includes('.') ? defaultName : `${defaultName}${extension}`;
+    recordingNameInput.value = filename;
+    
     recordingNameModal.style.display = 'flex';
     recordingNameInput.focus();
     recordingNameInput.select();
@@ -180,11 +235,10 @@ const handleRecordingSave = (blob) => {
     };
     
     const onConfirm = () => {
-        const filename = recordingNameInput.value || recordingNameInput.placeholder;
-        console.log(`📹 Saving recording: ${filename} (${(blob.size / 1024 / 1024).toFixed(2)} MB)`);
+        const finalFilename = recordingNameInput.value || recordingNameInput.placeholder;
+        console.log(`📹 Saving recording: ${finalFilename} (${(blob.size / 1024 / 1024).toFixed(2)} MB)`);
         
-        // Use enhanced download function
-        downloadVideoWithMetadata(blob, filename);
+        downloadVideoWithMetadata(blob, finalFilename);
         cleanup();
     };
     
@@ -193,7 +247,6 @@ const handleRecordingSave = (blob) => {
         cleanup();
     };
     
-    // Remove old event listeners and add new ones
     confirmRecordingSaveBtn.onclick = onConfirm;
     cancelRecordingSaveBtn.onclick = onCancel;
 };
@@ -355,6 +408,25 @@ const setupKeyboardShortcuts = () => {
     });
 };
 
+export const generateShareableUrl = (options = {}) => {
+    return urlParams.generateUrl(options);
+};
+
+export const showCurrentUrl = () => {
+    const currentUrl = window.location.href;
+    console.log('🔗 Current URL:', currentUrl);
+    
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(currentUrl).then(() => {
+            console.log('📋 URL copied to clipboard');
+        }).catch(err => {
+            console.log('Failed to copy URL:', err);
+        });
+    }
+    
+    return currentUrl;
+};
+
 export const initUI = () => {
     setupToolButtons();
     setupCanvasEventListeners(); 
@@ -366,5 +438,6 @@ export const initUI = () => {
     setupCanvasSizeModal();
     setupKeyboardShortcuts();
     updatePageInfo();
+    // This will now correctly load the default pencil settings into the UI
     elements.pencilBtn.click();
 };
