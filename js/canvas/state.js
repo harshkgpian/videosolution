@@ -16,7 +16,7 @@ export const state = {
       color: '#000000', // Default black
     },
     highlighter: {
-      size: '12',       // Default 'XT' size
+      size: '7',       // Default 'XT' size
       color: '#facc15', // Default yellow
     },
     eraser: {
