@@ -1,6 +1,7 @@
 // js/main.js
 import { initCanvas, setBackgroundImage, setCanvasSize } from './canvas/index.js';
-import { initUI } from './ui.js';
+// MODIFIED: Update this import path
+import { initUI } from './ui/index.js';
 import { urlParams } from './urlParams.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
