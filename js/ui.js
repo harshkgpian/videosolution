@@ -33,24 +33,15 @@ const setupToolButtons = () => {
     });
 };
 
-// --- MODIFIED: This function is fundamentally refactored for a robust fix ---
 const setupCanvasEventListeners = () => {
     const { canvas: canvasEl } = elements;
 
-    // This central function finalizes any drawing action and cleans up the state.
     const endDrawingAction = (e) => {
-        // Only run this logic if we were actually in a drawing state.
         if (!canvas.getState().isDrawing) return;
-
-        // Finalize the stroke or action. This is the most critical part.
         canvas.onPointerUp(e);
-
-        // Restart the recorder's pinger if it needs to be running.
         if (recorder.isRecording() && !recorder.getIsPaused()) {
             recorder.startPinger();
         }
-
-        // Handle reverting from the temporary eraser tool.
         if (canvas.getEraserButtonPressed()) {
             canvas.setEraserButtonPressed(false);
             elements.pencilBtn.click();
@@ -60,39 +51,25 @@ const setupCanvasEventListeners = () => {
         }
     };
 
-    // 1. Listener for starting an action on the canvas.
     canvasEl.addEventListener('pointerdown', (e) => {
-        // If recording, we must stop the pinger to allow for a new drawing to be rendered.
         if (recorder.isRecording()) {
             recorder.stopPinger();
         }
-
-        // Handle temporary eraser tool via pen buttons or right-click.
-        if (e.button === 5) { // Dedicated eraser button on stylus
+        if (e.button === 5) {
             e.preventDefault();
             canvas.setEraserButtonPressed(true);
             elements.eraserBtn.click();
-        } else if (e.button === 2) { // Right-click / Barrel button
+        } else if (e.button === 2) {
             canvas.setRightMouseDown(true);
             elements.eraserBtn.click();
         }
-        
-        // Let the canvas module handle the start of the drawing/selection.
         canvas.onPointerDown(e);
     });
 
-    // 2. Listener for movement on the canvas.
     canvasEl.addEventListener('pointermove', canvas.onPointerMove);
-
-    // 3. THE DEFINITIVE FIX: Global listener to catch "lost" pointer events.
-    // This is the safety net that fixes the double-click bug. It catches any pointer release
-    // that happens *anywhere*, ensuring the drawing state is never stuck.
     window.addEventListener('pointerup', endDrawingAction);
-
-    // Prevent context menu from interfering.
     canvasEl.addEventListener('contextmenu', (e) => e.preventDefault());
 };
-
 
 const setupActionButtons = () => {
     elements.savePdfBtn.addEventListener('click', () => file.saveDrawing(false));
@@ -111,7 +88,7 @@ const updateRecordingUI = () => {
         stopBtn.style.display = 'none';
     } else {
         stopBtn.style.display = 'flex';
-            if (recorder.getIsPaused()) {
+        if (recorder.getIsPaused()) {
             recordBtn.classList.remove('recording');
             recordBtn.classList.add('paused');
             recordIcon.className = 'fa-solid fa-play';
@@ -127,31 +104,96 @@ const updateRecordingUI = () => {
     }
 };
 
-const handleRecordingSave = (blob) => {
-    const { recordingNameModal, recordingNameInput, confirmRecordingSaveBtn, cancelRecordingSaveBtn } = elements;
-    const timestamp = new Date().toISOString().slice(0, 19).replace(/[-:T]/g, '');
-    recordingNameInput.value = `recording-${timestamp}.webm`;
-    recordingNameModal.style.display = 'flex';
-    recordingNameInput.focus();
-    recordingNameInput.select();
-    const cleanup = () => {
-        recordingNameModal.style.display = 'none';
-        updateRecordingUI();
-    };
-    const onConfirm = () => {
-        const filename = recordingNameInput.value || recordingNameInput.placeholder;
-        const url = URL.createObjectURL(blob);
+// Enhanced function to create downloadable video with proper metadata
+const downloadVideoWithMetadata = (blob, filename) => {
+    // Create a video element to test the blob
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+    video.muted = true;
+    
+    const url = URL.createObjectURL(blob);
+    video.src = url;
+    
+    const downloadVideo = () => {
+        // Create download link
         const a = document.createElement('a');
         a.style.display = 'none';
         a.href = url;
         a.download = filename;
         document.body.appendChild(a);
         a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
+        
+        // Cleanup after a short delay
+        setTimeout(() => {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }, 100);
+    };
+    
+    // Try to load metadata first
+    video.addEventListener('loadedmetadata', () => {
+        console.log(`✅ Video metadata loaded successfully:`);
+        console.log(`   Duration: ${video.duration} seconds`);
+        console.log(`   Video dimensions: ${video.videoWidth}x${video.videoHeight}`);
+        console.log(`   File size: ${(blob.size / 1024 / 1024).toFixed(2)} MB`);
+        downloadVideo();
+    }, { once: true });
+    
+    video.addEventListener('error', (e) => {
+        console.warn('⚠️ Video metadata loading failed, but downloading anyway:', e);
+        downloadVideo();
+    }, { once: true });
+    
+    // Fallback: if metadata doesn't load within 5 seconds, download anyway
+    setTimeout(() => {
+        if (video.readyState === 0) {
+            console.warn('⚠️ Metadata loading timeout, downloading video anyway');
+            downloadVideo();
+        }
+    }, 5000);
+    
+    // Try to load the video
+    video.load();
+};
+
+const handleRecordingSave = (blob) => {
+    const { recordingNameModal, recordingNameInput, confirmRecordingSaveBtn, cancelRecordingSaveBtn } = elements;
+    const timestamp = new Date().toISOString().slice(0, 19).replace(/[-:T]/g, '');
+    
+    // Determine file extension based on blob type
+    const mimeType = blob.type;
+    let extension = '.webm'; // default
+    if (mimeType.includes('mp4')) {
+        extension = '.mp4';
+    } else if (mimeType.includes('webm')) {
+        extension = '.webm';
+    }
+    
+    recordingNameInput.value = `recording-${timestamp}${extension}`;
+    recordingNameModal.style.display = 'flex';
+    recordingNameInput.focus();
+    recordingNameInput.select();
+    
+    const cleanup = () => {
+        recordingNameModal.style.display = 'none';
+        updateRecordingUI();
+    };
+    
+    const onConfirm = () => {
+        const filename = recordingNameInput.value || recordingNameInput.placeholder;
+        console.log(`📹 Saving recording: ${filename} (${(blob.size / 1024 / 1024).toFixed(2)} MB)`);
+        
+        // Use enhanced download function
+        downloadVideoWithMetadata(blob, filename);
         cleanup();
     };
-    const onCancel = () => cleanup();
+    
+    const onCancel = () => {
+        console.log('❌ Recording discarded by user');
+        cleanup();
+    };
+    
+    // Remove old event listeners and add new ones
     confirmRecordingSaveBtn.onclick = onConfirm;
     cancelRecordingSaveBtn.onclick = onCancel;
 };
@@ -159,18 +201,43 @@ const handleRecordingSave = (blob) => {
 const setupRecording = () => {
     elements.recordBtn.addEventListener('click', async () => {
         if (!recorder.isRecording()) {
-            try { await recorder.startRecording(); } 
-            catch (error) { alert(error.message); }
+            try { 
+                console.log('🎬 Starting recording...');
+                await recorder.startRecording(); 
+                console.log('✅ Recording started successfully');
+            } catch (error) { 
+                console.error('❌ Recording start failed:', error);
+                alert(`Recording failed: ${error.message}`); 
+            }
         } else {
-            recorder.getIsPaused() ? recorder.resumeRecording() : recorder.pauseRecording();
+            if (recorder.getIsPaused()) {
+                console.log('▶️ Resuming recording...');
+                recorder.resumeRecording();
+            } else {
+                console.log('⏸️ Pausing recording...');
+                recorder.pauseRecording();
+            }
         }
         updateRecordingUI();
     });
+    
     elements.stopBtn.addEventListener('click', async () => {
-        const blob = await recorder.stopRecording();
-        if (blob && blob.size > 0) {
-            handleRecordingSave(blob);
-        } else {
+        console.log('⏹️ Stopping recording...');
+        
+        try {
+            const blob = await recorder.stopRecording();
+            
+            if (blob && blob.size > 0) {
+                console.log(`✅ Recording stopped successfully: ${(blob.size / 1024 / 1024).toFixed(2)} MB`);
+                handleRecordingSave(blob);
+            } else {
+                console.warn('⚠️ No recording data available');
+                alert('No recording data was captured. Please try again.');
+                updateRecordingUI();
+            }
+        } catch (error) {
+            console.error('❌ Error stopping recording:', error);
+            alert(`Failed to stop recording: ${error.message}`);
             updateRecordingUI();
         }
     });
