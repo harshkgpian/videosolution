@@ -1,22 +1,11 @@
 // js/main.js
 import { initCanvas, setBackgroundImage, setCanvasSize } from './canvas/index.js';
-import { initUI } from './ui/index.js';
+import { initUI } from './ui.js';
 import { urlParams } from './urlParams.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('🚀 Initializing drawing application...');
   
-  // NEW: Wait for the icon font to be loaded before doing anything else.
-  // This prevents the crop icon from being invisible on the first load.
-  try {
-    // We specify the style and weight to ensure the browser loads the correct "solid" icon set.
-    await document.fonts.load('900 14px "Font Awesome 6 Free"');
-    console.log('✅ Font Awesome loaded successfully.');
-  } catch (error) {
-    console.error('❌ Could not load Font Awesome font:', error);
-  }
-  // --- END OF NEW CODE ---
-
   // Initialize canvas and UI first
   initCanvas();
   initUI();
@@ -54,6 +43,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const urlBackground = urlParams.getParam('background') || urlParams.getParam('bg');
     if (urlBackground) {
       console.log('🖼️ Background loaded from URL parameters');
+      // Background was already loaded in processUrlParams()
     } else {
       // Fallback to saved background or default
       const savedBackground = localStorage.getItem('canvasBackground');
@@ -68,6 +58,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     console.log('✅ Application initialized successfully');
 
+    // Log available URL parameters for user reference
     const params = urlParams.getParams();
     if (Object.keys(params).length > 0) {
       console.log('🔗 Active URL parameters:', params);
@@ -79,6 +70,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   } catch (error) {
     console.error('❌ Error during initialization:', error);
     
+    // Fallback initialization if URL processing fails
     console.log('🔄 Falling back to default initialization...');
     setCanvasSize(1280, 720);
     await setBackgroundImage('images/background.png');
