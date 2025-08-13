@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Script Generator</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Renders Markdown -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- Renders LaTeX -->
+    <script>
+        MathJax = {
+          tex: {
+            inlineMath: [['$', '$'], ['\\(', '\\)']],
+            displayMath: [['$$', '$$'], ['\\[', '\\]']]
+          },
+          svg: {
+            fontCache: 'global'
+          }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+</head>
+<body>
+    <div class="main-container">
+        <header>
+            <h1>AI Script Generator</h1>
+            <p>Generate high-quality voiceover scripts from questions and solutions.</p>
+        </header>
+
+        <div class="settings-card">
+            <h2>Configuration</h2>
+            <div class="settings-grid">
+                <div class="input-group">
+                    <label for="api-key">Gemini API Key (Saved in browser)</label>
+                    <input type="password" id="api-key" placeholder="Enter your API key once">
+                </div>
+                <div class="input-group">
+                    <label for="model-select">Model</label>
+                    <select id="model-select">
+                        <option value="gemini-2.5-pro">Gemini 2.5 Pro (New)</option>
+                        <option value="gemini-2.5-flash">Gemini 2.5 Flash (New)</option>
+                        <option value="gemini-2.0-pro">Gemini 2.0 Pro</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="prompt-card">
+            <h2>Your Content</h2>
+            <!-- DEDICATED INPUTS INSTEAD OF TEMPLATE -->
+            <div class="input-group">
+                <label for="question-input">Question</label>
+                <textarea id="question-input" rows="5" placeholder="Paste the question here..."></textarea>
+            </div>
+            <div class="input-group">
+                <label for="solution-input">Solution</label>
+                <textarea id="solution-input" rows="12" placeholder="Paste the detailed, step-by-step solution here..."></textarea>
+            </div>
+            
+            <div class="file-input-wrapper">
+                <label for="image-upload" class="file-upload-button">Upload Image (Optional)</label>
+                <input type="file" id="image-upload" accept="image/*">
+                <span id="file-name">No file chosen</span>
+            </div>
+            <div id="image-preview-container" class="hidden">
+                <img id="image-preview" src="#" alt="Image Preview"/>
+            </div>
+            <button id="submit-btn">
+                <span class="btn-text">Generate Script</span>
+                <div class="loader hidden"></div>
+            </button>
+        </div>
+
+        <div id="response-card" class="response-card hidden">
+            <h2>Generated Script</h2>
+            <div id="response-content"></div>
+        </div>
+    </div>
+
+    <script src="./js/script.js" type="module"></script>
+</body>
+</html>
