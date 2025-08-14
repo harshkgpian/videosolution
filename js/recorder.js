@@ -144,7 +144,7 @@ export const startRecording = async () => {
     mediaRecorder.ondataavailable = handleDataAvailable;
     
     // Start recording with regular data intervals
-    mediaRecorder.start(100); // Request data every 100ms for smooth recording
+    mediaRecorder.start(20); // Request data every 100ms for smooth recording
     isPaused = false;
     
     pinger.start();
