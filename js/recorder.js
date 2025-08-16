@@ -13,18 +13,28 @@ let lastPauseTime = null;
 let recordingTimer = null;
 
 const pinger = {
+    snapshot: null,
     intervalId: null,
-    start() {
+    async start() {
         if (this.intervalId) return;
-        const frameRate = 30; // Keep the video stream alive at 30fps
+        const { canvas, ctx } = getCanvasContext();
+        if (!canvas || !ctx) return;
+        const img = new Image();
+        img.src = canvas.toDataURL();
+        await new Promise(resolve => { img.onload = resolve; });
+        this.snapshot = img;
+        const frameRate = 90;
         this.intervalId = setInterval(() => {
-            renderPage(); // Simply re-render the current state of the canvas
+            if (this.snapshot) {
+                ctx.drawImage(this.snapshot, 0, 0, canvas.width, canvas.height);
+            }
         }, 1000 / frameRate);
     },
     stop() {
         if (this.intervalId) {
             clearInterval(this.intervalId);
             this.intervalId = null;
+            this.snapshot = null;
         }
     }
 };
