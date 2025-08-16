@@ -23,7 +23,7 @@ const pinger = {
         img.src = canvas.toDataURL();
         await new Promise(resolve => { img.onload = resolve; });
         this.snapshot = img;
-        const frameRate = 30;
+        const frameRate = 90;
         this.intervalId = setInterval(() => {
             if (this.snapshot) {
                 ctx.drawImage(this.snapshot, 0, 0, canvas.width, canvas.height);
@@ -144,7 +144,7 @@ export const startRecording = async () => {
     mediaRecorder.ondataavailable = handleDataAvailable;
     
     // Start recording with regular data intervals
-    mediaRecorder.start(20); // Request data every 100ms for smooth recording
+    mediaRecorder.start(50); // Request data every 100ms for smooth recording
     isPaused = false;
     
     pinger.start();
