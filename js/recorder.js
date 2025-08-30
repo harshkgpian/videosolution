@@ -1,5 +1,5 @@
 // js/recorder.js
-import { getCanvasContext } from './canvas/index.js';
+import { getCanvasContext, renderPage } from './canvas/index.js';
 import * as waveform from './waveform.js';
 
 let mediaRecorder;
@@ -13,28 +13,25 @@ let lastPauseTime = null;
 let recordingTimer = null;
 
 const pinger = {
-    snapshot: null,
     intervalId: null,
-    async start() {
+    start() {
         if (this.intervalId) return;
-        const { canvas, ctx } = getCanvasContext();
-        if (!canvas || !ctx) return;
-        const img = new Image();
-        img.src = canvas.toDataURL();
-        await new Promise(resolve => { img.onload = resolve; });
-        this.snapshot = img;
-        const frameRate = 90;
+
+        // This pinger creates video frames when the canvas is static.
+        // Instead of capturing a static snapshot, we re-render the canvas periodically.
+        // This ensures the video always shows the most up-to-date state.
+        // A low frame rate (15 FPS) prevents the lag and flickering caused by the previous
+        // high-frequency implementation.
+        const frameRate = 15; 
         this.intervalId = setInterval(() => {
-            if (this.snapshot) {
-                ctx.drawImage(this.snapshot, 0, 0, canvas.width, canvas.height);
-            }
+            // renderPage() redraws the entire current canvas state, creating a new frame for the recorder.
+            renderPage(); 
         }, 1000 / frameRate);
     },
     stop() {
         if (this.intervalId) {
             clearInterval(this.intervalId);
             this.intervalId = null;
-            this.snapshot = null;
         }
     }
 };
@@ -108,14 +105,18 @@ export const startRecording = async () => {
   startTime = Date.now();
 
   try {
-    audioStream = await navigator.mediaDevices.getUserMedia({ 
+    // MODIFICATION: Use more robust and flexible audio constraints for better compatibility
+    const audioConstraints = {
       audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        sampleRate: 44100
+        echoCancellation: { ideal: true },
+        noiseSuppression: { ideal: true },
+        autoGainControl:  { ideal: true }
       }, 
       video: false 
-    });
+    };
+
+    console.log('Requesting audio with constraints:', audioConstraints);
+    audioStream = await navigator.mediaDevices.getUserMedia(audioConstraints);
     
     const { canvas } = getCanvasContext();
     videoStream = canvas.captureStream(30); // Use 30fps for better compatibility
@@ -131,7 +132,7 @@ export const startRecording = async () => {
     const mimeType = getSupportedMimeType();
     const options = {
       mimeType,
-      videoBitsPerSecond: 2500000, // Reduced bitrate for better compatibility
+      videoBitsPerSecond: 2500000,
       audioBitsPerSecond: 128000,
     };
     
@@ -144,7 +145,7 @@ export const startRecording = async () => {
     mediaRecorder.ondataavailable = handleDataAvailable;
     
     // Start recording with regular data intervals
-    mediaRecorder.start(50); // Request data every 100ms for smooth recording
+    mediaRecorder.start(50); // Request data every 50ms for smooth recording
     isPaused = false;
     
     pinger.start();
@@ -152,9 +153,10 @@ export const startRecording = async () => {
     
   } catch (err) {
     console.error("Could not start recording:", err);
+    // Provide a more user-friendly error message
+    alert(`Could not start recording. Please ensure microphone permissions are granted and check your system's audio settings. Error: ${err.name} - ${err.message}`);
     if (audioStream) audioStream.getTracks().forEach(track => track.stop());
     if (videoStream) videoStream.getTracks().forEach(track => track.stop());
-    throw new Error('Recording failed: ' + (err.message || 'Unknown error'));
   }
 };
 

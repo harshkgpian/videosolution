@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Screen Recorder</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #f0f0f0;
+        }
+        
+        #canvas {
+            border: 2px solid #333;
+            background: white;
+            cursor: crosshair;
+            display: block;
+            margin: 20px 0;
+        }
+        
+        .controls {
+            margin: 10px 0;
+        }
+        
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .status {
+            margin: 10px 0;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Smart Screen Recorder</h1>
+    
+    <div class="controls">
+        <button id="startBtn">Start Recording</button>
+        <button id="stopBtn" disabled>Stop Recording</button>
+        <button id="downloadBtn" disabled>Download Video</button>
+    </div>
+    
+    <div class="status" id="status">Ready to record</div>
+    
+    <canvas id="canvas" width="800" height="600"></canvas>
+    
+    <video id="preview" controls style="width: 400px; margin-top: 20px; display: none;"></video>
+
+    <script>
+        class SmartRecorder {
+            constructor() {
+                this.canvas = document.getElementById('canvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.status = document.getElementById('status');
+                
+                this.mediaRecorder = null;
+                this.stream = null;
+                this.chunks = [];
+                
+                // Pinger control
+                this.pingerInterval = null;
+                this.isDrawing = false;
+                this.lastDrawTime = 0;
+                this.IDLE_THRESHOLD = 500; // ms after drawing stops to start pinger
+                
+                this.setupCanvas();
+                this.setupButtons();
+            }
+            
+            setupCanvas() {
+                let drawing = false;
+                
+                this.canvas.addEventListener('mousedown', (e) => {
+                    drawing = true;
+                    this.isDrawing = true;
+                    this.lastDrawTime = Date.now();
+                    this.stopPinger(); // Stop pinger immediately when drawing starts
+                    
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(e.offsetX, e.offsetY);
+                });
+                
+                this.canvas.addEventListener('mousemove', (e) => {
+                    if (!drawing) return;
+                    
+                    this.ctx.lineTo(e.offsetX, e.offsetY);
+                    this.ctx.stroke();
+                    this.lastDrawTime = Date.now();
+                });
+                
+                this.canvas.addEventListener('mouseup', () => {
+                    drawing = false;
+                    this.isDrawing = false;
+                    
+                    // Start checking if we need to enable pinger after drawing stops
+                    this.scheduleIdleCheck();
+                });
+                
+                // Set drawing style
+                this.ctx.strokeStyle = '#000';
+                this.ctx.lineWidth = 2;
+                this.ctx.lineCap = 'round';
+            }
+            
+            scheduleIdleCheck() {
+                setTimeout(() => {
+                    if (!this.isDrawing && this.mediaRecorder?.state === 'recording') {
+                        const timeSinceLastDraw = Date.now() - this.lastDrawTime;
+                        if (timeSinceLastDraw >= this.IDLE_THRESHOLD) {
+                            this.startPinger();
+                        }
+                    }
+                }, this.IDLE_THRESHOLD);
+            }
+            
+            startPinger() {
+                if (this.pingerInterval) return; // Already running
+                
+                console.log('Starting pinger - keeping frames alive');
+                this.status.textContent = 'Recording (idle mode - pinger active)';
+                
+                // Minimal visual ping - just a tiny change
+                this.pingerInterval = setInterval(() => {
+                    if (!this.isDrawing && this.mediaRecorder?.state === 'recording') {
+                        // Add a single transparent pixel to keep the stream alive
+                        const imageData = this.ctx.getImageData(0, 0, 1, 1);
+                        this.ctx.putImageData(imageData, 0, 0);
+                    }
+                }, 100); // 10 FPS when idle
+            }
+            
+            stopPinger() {
+                if (this.pingerInterval) {
+                    console.log('Stopping pinger - active drawing detected');
+                    clearInterval(this.pingerInterval);
+                    this.pingerInterval = null;
+                    
+                    if (this.mediaRecorder?.state === 'recording') {
+                        this.status.textContent = 'Recording (active drawing)';
+                    }
+                }
+            }
+            
+            setupButtons() {
+                document.getElementById('startBtn').addEventListener('click', () => this.startRecording());
+                document.getElementById('stopBtn').addEventListener('click', () => this.stopRecording());
+                document.getElementById('downloadBtn').addEventListener('click', () => this.downloadVideo());
+            }
+            
+            async startRecording() {
+                try {
+                    // Capture the canvas stream
+                    this.stream = this.canvas.captureStream(30); // 30 FPS
+                    
+                    this.mediaRecorder = new MediaRecorder(this.stream, {
+                        mimeType: 'video/webm;codecs=vp9'
+                    });
+                    
+                    this.chunks = [];
+                    
+                    this.mediaRecorder.ondataavailable = (event) => {
+                        if (event.data.size > 0) {
+                            this.chunks.push(event.data);
+                        }
+                    };
+                    
+                    this.mediaRecorder.onstop = () => {
+                        const blob = new Blob(this.chunks, { type: 'video/webm' });
+                        const url = URL.createObjectURL(blob);
+                        
+                        const preview = document.getElementById('preview');
+                        preview.src = url;
+                        preview.style.display = 'block';
+                        
+                        document.getElementById('downloadBtn').disabled = false;
+                        document.getElementById('downloadBtn').onclick = () => {
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = 'drawing-recording.webm';
+                            a.click();
+                        };
+                    };
+                    
+                    this.mediaRecorder.start();
+                    
+                    document.getElementById('startBtn').disabled = true;
+                    document.getElementById('stopBtn').disabled = false;
+                    this.status.textContent = 'Recording started - draw something!';
+                    
+                    // Start with pinger since no drawing is happening yet
+                    setTimeout(() => this.startPinger(), this.IDLE_THRESHOLD);
+                    
+                } catch (error) {
+                    console.error('Error starting recording:', error);
+                    this.status.textContent = 'Error starting recording';
+                }
+            }
+            
+            stopRecording() {
+                if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+                    this.mediaRecorder.stop();
+                }
+                
+                this.stopPinger();
+                
+                if (this.stream) {
+                    this.stream.getTracks().forEach(track => track.stop());
+                }
+                
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+                this.status.textContent = 'Recording stopped';
+            }
+            
+            downloadVideo() {
+                // This is handled in the onstop event
+            }
+        }
+        
+        // Initialize the recorder when page loads
+        window.addEventListener('DOMContentLoaded', () => {
+            new SmartRecorder();
+        });
+    </script>
+</body>
+</html>
